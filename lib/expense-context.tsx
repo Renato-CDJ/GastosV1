@@ -1,8 +1,22 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from "react"
 import type { Expense, ExpenseType, CategoryBudget, Installment, Salary, FamilyMember } from "./types"
 import { useUser } from "./user-context"
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  onSnapshot,
+  getDocs,
+  setDoc,
+} from "firebase/firestore"
+import { getFirebaseFirestore } from "./firebase"
+import { toast } from "@/hooks/use-toast"
 
 interface ExpenseContextType {
   expenses: Expense[]
@@ -53,219 +67,487 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const storedExpenses = localStorage.getItem("expenses")
-    const storedBudgets = localStorage.getItem("budgets")
-    const storedInstallments = localStorage.getItem("installments")
-    const storedCategories = localStorage.getItem("categories")
-    const storedSalary = localStorage.getItem("salary")
-    const storedFamilyMembers = localStorage.getItem("familyMembers")
+    if (!currentUser) {
+      setExpenses([])
+      setBudgets([])
+      setInstallments([])
+      setSalaryState([])
+      setFamilyMembers([])
+      setIsLoaded(true)
+      return
+    }
 
-    if (storedExpenses) {
-      setExpenses(JSON.parse(storedExpenses))
+    const db = getFirebaseFirestore()
+
+    const expensesQuery = query(collection(db, "expenses"))
+    const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
+      const expensesData: Expense[] = []
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        if (data.type === "family" || data.userId === currentUser.id) {
+          expensesData.push({ id: doc.id, ...data } as Expense)
+        }
+      })
+      setExpenses(expensesData)
+    })
+
+    const budgetsQuery = query(collection(db, "budgets"))
+    const unsubscribeBudgets = onSnapshot(budgetsQuery, (snapshot) => {
+      const budgetsData: CategoryBudget[] = []
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        if (data.type === "family" || data.userId === currentUser.id) {
+          budgetsData.push({ ...data } as CategoryBudget)
+        }
+      })
+      setBudgets(budgetsData)
+    })
+
+    const installmentsQuery = query(collection(db, "installments"), where("userId", "==", currentUser.id))
+    const unsubscribeInstallments = onSnapshot(installmentsQuery, (snapshot) => {
+      const installmentsData: Installment[] = []
+      snapshot.forEach((doc) => {
+        installmentsData.push({ id: doc.id, ...doc.data() } as Installment)
+      })
+      setInstallments(installmentsData)
+    })
+
+    const salaryQuery = query(collection(db, "salary"))
+    const unsubscribeSalary = onSnapshot(salaryQuery, (snapshot) => {
+      const salaryData: Salary[] = []
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        if (data.type === "family" || data.userId === currentUser.id) {
+          salaryData.push({ ...data } as Salary)
+        }
+      })
+      setSalaryState(salaryData)
+    })
+
+    const familyMembersQuery = query(collection(db, "familyMembers"))
+    const unsubscribeFamilyMembers = onSnapshot(familyMembersQuery, (snapshot) => {
+      const familyMembersData: FamilyMember[] = []
+      snapshot.forEach((doc) => {
+        familyMembersData.push({ id: doc.id, ...doc.data() } as FamilyMember)
+      })
+      setFamilyMembers(familyMembersData)
+    })
+
+    const loadCategories = async () => {
+      const userCategoriesDoc = doc(db, "userCategories", currentUser.id)
+      const snapshot = await getDocs(query(collection(db, "userCategories"), where("__name__", "==", currentUser.id)))
+      if (!snapshot.empty) {
+        const data = snapshot.docs[0].data()
+        if (data.categories) {
+          setCategories(data.categories)
+        }
+      }
     }
-    if (storedBudgets) {
-      setBudgets(JSON.parse(storedBudgets))
-    }
-    if (storedInstallments) {
-      setInstallments(JSON.parse(storedInstallments))
-    }
-    if (storedCategories) {
-      setCategories(JSON.parse(storedCategories))
-    }
-    if (storedSalary) {
-      setSalaryState(JSON.parse(storedSalary))
-    }
-    if (storedFamilyMembers) {
-      setFamilyMembers(JSON.parse(storedFamilyMembers))
-    }
+    loadCategories()
+
     setIsLoaded(true)
+
+    return () => {
+      unsubscribeExpenses()
+      unsubscribeBudgets()
+      unsubscribeInstallments()
+      unsubscribeSalary()
+      unsubscribeFamilyMembers()
+    }
+  }, [currentUser])
+
+  const addExpense = useCallback(
+    async (expense: Omit<Expense, "id" | "createdAt" | "userId">) => {
+      if (!currentUser) return
+
+      try {
+        const db = getFirebaseFirestore()
+        const newExpense = {
+          ...expense,
+          createdAt: new Date().toISOString(),
+          userId: expense.type === "personal" ? currentUser.id : undefined,
+        }
+
+        await addDoc(collection(db, "expenses"), newExpense)
+      } catch (error: any) {
+        console.error("Error adding expense:", error)
+        toast({
+          title: "Erro ao adicionar gasto",
+          description: error.message || "Tente novamente mais tarde.",
+          variant: "destructive",
+        })
+        throw error
+      }
+    },
+    [currentUser],
+  )
+
+  const updateExpense = useCallback(async (id: string, updatedData: Partial<Expense>) => {
+    try {
+      const db = getFirebaseFirestore()
+      const expenseRef = doc(db, "expenses", id)
+      await updateDoc(expenseRef, updatedData)
+      toast({
+        title: "Gasto atualizado",
+        description: "As alterações foram salvas com sucesso.",
+      })
+    } catch (error: any) {
+      console.error("Error updating expense:", error)
+      toast({
+        title: "Erro ao atualizar gasto",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
+    }
   }, [])
 
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("expenses", JSON.stringify(expenses))
+  const deleteExpense = useCallback(async (id: string) => {
+    try {
+      const db = getFirebaseFirestore()
+      const expenseRef = doc(db, "expenses", id)
+      await deleteDoc(expenseRef)
+      toast({
+        title: "Gasto excluído",
+        description: "O gasto foi removido com sucesso.",
+      })
+    } catch (error: any) {
+      console.error("Error deleting expense:", error)
+      toast({
+        title: "Erro ao excluir gasto",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
     }
-  }, [expenses, isLoaded])
+  }, [])
 
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("budgets", JSON.stringify(budgets))
-    }
-  }, [budgets, isLoaded])
+  const setBudget = useCallback(
+    async (budget: Omit<CategoryBudget, "userId">) => {
+      if (!currentUser) return
 
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("installments", JSON.stringify(installments))
-    }
-  }, [installments, isLoaded])
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("categories", JSON.stringify(categories))
-    }
-  }, [categories, isLoaded])
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("salary", JSON.stringify(salary))
-    }
-  }, [salary, isLoaded])
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("familyMembers", JSON.stringify(familyMembers))
-    }
-  }, [familyMembers, isLoaded])
-
-  const addExpense = (expense: Omit<Expense, "id" | "createdAt" | "userId">) => {
-    const newExpense: Expense = {
-      ...expense,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      userId: expense.type === "personal" ? currentUser?.id : undefined,
-    }
-    setExpenses((prev) => [newExpense, ...prev])
-  }
-
-  const updateExpense = (id: string, updatedData: Partial<Expense>) => {
-    setExpenses((prev) => prev.map((expense) => (expense.id === id ? { ...expense, ...updatedData } : expense)))
-  }
-
-  const deleteExpense = (id: string) => {
-    setExpenses((prev) => prev.filter((expense) => expense.id !== id))
-  }
-
-  const setBudget = (budget: Omit<CategoryBudget, "userId">) => {
-    const budgetWithUser: CategoryBudget = {
-      ...budget,
-      userId: budget.type === "personal" ? currentUser?.id : undefined,
-    }
-
-    setBudgets((prev) => {
-      const existing = prev.findIndex(
-        (b) =>
-          b.category === budgetWithUser.category &&
-          b.type === budgetWithUser.type &&
-          b.userId === budgetWithUser.userId,
-      )
-      if (existing >= 0) {
-        const updated = [...prev]
-        updated[existing] = budgetWithUser
-        return updated
-      }
-      return [...prev, budgetWithUser]
-    })
-  }
-
-  const setSalary = (salaryData: Omit<Salary, "userId">) => {
-    const salaryWithUser: Salary = {
-      ...salaryData,
-      userId: salaryData.type === "personal" ? currentUser?.id : undefined,
-    }
-
-    setSalaryState((prev) => {
-      const existing = prev.findIndex((s) => s.type === salaryWithUser.type && s.userId === salaryWithUser.userId)
-      if (existing >= 0) {
-        const updated = [...prev]
-        updated[existing] = salaryWithUser
-        return updated
-      }
-      return [...prev, salaryWithUser]
-    })
-  }
-
-  const addInstallment = (installment: Omit<Installment, "id" | "createdAt" | "paidInstallments" | "userId">) => {
-    const newInstallment: Installment = {
-      ...installment,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      paidInstallments: [],
-      userId: currentUser?.id,
-    }
-    setInstallments((prev) => [newInstallment, ...prev])
-  }
-
-  const updateInstallment = (id: string, updatedData: Partial<Installment>) => {
-    setInstallments((prev) =>
-      prev.map((installment) => (installment.id === id ? { ...installment, ...updatedData } : installment)),
-    )
-  }
-
-  const deleteInstallment = (id: string) => {
-    setInstallments((prev) => prev.filter((installment) => installment.id !== id))
-  }
-
-  const markInstallmentAsPaid = (id: string, installmentNumber: number) => {
-    setInstallments((prev) =>
-      prev.map((installment) => {
-        if (installment.id === id) {
-          const paidInstallments = installment.paidInstallments.includes(installmentNumber)
-            ? installment.paidInstallments.filter((n) => n !== installmentNumber)
-            : [...installment.paidInstallments, installmentNumber]
-          return { ...installment, paidInstallments }
+      try {
+        const db = getFirebaseFirestore()
+        const budgetWithUser: CategoryBudget = {
+          ...budget,
+          userId: budget.type === "personal" ? currentUser.id : undefined,
         }
-        return installment
-      }),
-    )
-  }
 
-  const getExpensesByType = (type: ExpenseType) => {
-    return expenses.filter((expense) => {
-      if (expense.type !== type) return false
-      if (type === "personal") {
-        return expense.userId === currentUser?.id
+        const budgetId = `${budgetWithUser.category}_${budgetWithUser.type}_${budgetWithUser.userId || "family"}`
+        const budgetRef = doc(db, "budgets", budgetId)
+        await setDoc(budgetRef, budgetWithUser)
+        toast({
+          title: "Orçamento definido",
+          description: "O orçamento foi salvo com sucesso.",
+        })
+      } catch (error: any) {
+        console.error("Error setting budget:", error)
+        toast({
+          title: "Erro ao definir orçamento",
+          description: error.message || "Tente novamente mais tarde.",
+          variant: "destructive",
+        })
+        throw error
       }
-      return true // Family expenses are shared
-    })
-  }
+    },
+    [currentUser],
+  )
 
-  const getExpensesByDateRange = (startDate: string, endDate: string, type?: ExpenseType) => {
-    return expenses.filter((expense) => {
-      const expenseDate = new Date(expense.date)
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-      const matchesDate = expenseDate >= start && expenseDate <= end
-      const matchesType = type ? expense.type === type : true
+  const setSalary = useCallback(
+    async (salaryData: Omit<Salary, "userId">) => {
+      if (!currentUser) return
 
-      if (type === "personal" && expense.userId !== currentUser?.id) {
-        return false
+      try {
+        const db = getFirebaseFirestore()
+        const salaryWithUser: Salary = {
+          ...salaryData,
+          userId: salaryData.type === "personal" ? currentUser.id : undefined,
+        }
+
+        const salaryId = `${salaryWithUser.type}_${salaryWithUser.userId || "family"}`
+        const salaryRef = doc(db, "salary", salaryId)
+        await setDoc(salaryRef, salaryWithUser)
+        toast({
+          title: "Salário atualizado",
+          description: "O salário foi salvo com sucesso.",
+        })
+      } catch (error: any) {
+        console.error("Error setting salary:", error)
+        toast({
+          title: "Erro ao atualizar salário",
+          description: error.message || "Tente novamente mais tarde.",
+          variant: "destructive",
+        })
+        throw error
+      }
+    },
+    [currentUser],
+  )
+
+  const addInstallment = useCallback(
+    async (installment: Omit<Installment, "id" | "createdAt" | "paidInstallments" | "userId">) => {
+      if (!currentUser) return
+
+      try {
+        const db = getFirebaseFirestore()
+        const newInstallment = {
+          ...installment,
+          createdAt: new Date().toISOString(),
+          paidInstallments: [],
+          userId: currentUser.id,
+        }
+
+        await addDoc(collection(db, "installments"), newInstallment)
+        toast({
+          title: "Parcelamento adicionado",
+          description: "O parcelamento foi registrado com sucesso.",
+        })
+      } catch (error: any) {
+        console.error("Error adding installment:", error)
+        toast({
+          title: "Erro ao adicionar parcelamento",
+          description: error.message || "Tente novamente mais tarde.",
+          variant: "destructive",
+        })
+        throw error
+      }
+    },
+    [currentUser],
+  )
+
+  const updateInstallment = useCallback(async (id: string, updatedData: Partial<Installment>) => {
+    try {
+      const db = getFirebaseFirestore()
+      const installmentRef = doc(db, "installments", id)
+      await updateDoc(installmentRef, updatedData)
+      toast({
+        title: "Parcelamento atualizado",
+        description: "As alterações foram salvas com sucesso.",
+      })
+    } catch (error: any) {
+      console.error("Error updating installment:", error)
+      toast({
+        title: "Erro ao atualizar parcelamento",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }, [])
+
+  const deleteInstallment = useCallback(async (id: string) => {
+    try {
+      const db = getFirebaseFirestore()
+      const installmentRef = doc(db, "installments", id)
+      await deleteDoc(installmentRef)
+      toast({
+        title: "Parcelamento excluído",
+        description: "O parcelamento foi removido com sucesso.",
+      })
+    } catch (error: any) {
+      console.error("Error deleting installment:", error)
+      toast({
+        title: "Erro ao excluir parcelamento",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }, [])
+
+  const markInstallmentAsPaid = useCallback(
+    async (id: string, installmentNumber: number) => {
+      try {
+        const db = getFirebaseFirestore()
+        const installment = installments.find((i) => i.id === id)
+        if (!installment) return
+
+        const paidInstallments = installment.paidInstallments.includes(installmentNumber)
+          ? installment.paidInstallments.filter((n) => n !== installmentNumber)
+          : [...installment.paidInstallments, installmentNumber]
+
+        const installmentRef = doc(db, "installments", id)
+        await updateDoc(installmentRef, { paidInstallments })
+
+        const isPaid = paidInstallments.includes(installmentNumber)
+        toast({
+          title: isPaid ? "Parcela marcada como paga" : "Parcela desmarcada",
+          description: `Parcela ${installmentNumber} atualizada.`,
+        })
+      } catch (error: any) {
+        console.error("Error marking installment as paid:", error)
+        toast({
+          title: "Erro ao atualizar parcela",
+          description: error.message || "Tente novamente mais tarde.",
+          variant: "destructive",
+        })
+        throw error
+      }
+    },
+    [installments],
+  )
+
+  const getExpensesByType = useCallback(
+    (type: ExpenseType) => {
+      return expenses.filter((expense) => {
+        if (expense.type !== type) return false
+        if (type === "personal") {
+          return expense.userId === currentUser?.id
+        }
+        return true
+      })
+    },
+    [expenses, currentUser?.id],
+  )
+
+  const getExpensesByDateRange = useCallback(
+    (startDate: string, endDate: string, type?: ExpenseType) => {
+      return expenses.filter((expense) => {
+        const expenseDate = new Date(expense.date)
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        const matchesDate = expenseDate >= start && expenseDate <= end
+        const matchesType = type ? expense.type === type : true
+
+        if (type === "personal" && expense.userId !== currentUser?.id) {
+          return false
+        }
+
+        return matchesDate && matchesType
+      })
+    },
+    [expenses, currentUser?.id],
+  )
+
+  const getInstallmentsByType = useCallback(
+    (type: ExpenseType) => {
+      return installments.filter((installment) => installment.type === type && installment.userId === currentUser?.id)
+    },
+    [installments, currentUser?.id],
+  )
+
+  const addCategory = useCallback(
+    async (category: string) => {
+      if (!currentUser) return
+
+      try {
+        const db = getFirebaseFirestore()
+        const normalizedCategory = category.toLowerCase().replace(/\s+/g, "_")
+        if (!categories.includes(normalizedCategory)) {
+          const newCategories = [...categories, normalizedCategory]
+          setCategories(newCategories)
+
+          const userCategoriesRef = doc(db, "userCategories", currentUser.id)
+          await setDoc(userCategoriesRef, { categories: newCategories })
+          toast({
+            title: "Categoria adicionada",
+            description: `A categoria "${category}" foi criada com sucesso.`,
+          })
+        }
+      } catch (error: any) {
+        console.error("Error adding category:", error)
+        toast({
+          title: "Erro ao adicionar categoria",
+          description: error.message || "Tente novamente mais tarde.",
+          variant: "destructive",
+        })
+        throw error
+      }
+    },
+    [categories, currentUser],
+  )
+
+  const deleteCategory = useCallback(
+    async (category: string) => {
+      if (!currentUser) return
+
+      try {
+        const db = getFirebaseFirestore()
+        const newCategories = categories.filter((c) => c !== category)
+        setCategories(newCategories)
+
+        const userCategoriesRef = doc(db, "userCategories", currentUser.id)
+        await setDoc(userCategoriesRef, { categories: newCategories })
+        toast({
+          title: "Categoria excluída",
+          description: "A categoria foi removida com sucesso.",
+        })
+      } catch (error: any) {
+        console.error("Error deleting category:", error)
+        toast({
+          title: "Erro ao excluir categoria",
+          description: error.message || "Tente novamente mais tarde.",
+          variant: "destructive",
+        })
+        throw error
+      }
+    },
+    [categories, currentUser],
+  )
+
+  const addFamilyMember = useCallback(async (member: Omit<FamilyMember, "id" | "createdAt">) => {
+    try {
+      const db = getFirebaseFirestore()
+      const newMember = {
+        ...member,
+        createdAt: new Date().toISOString(),
       }
 
-      return matchesDate && matchesType
-    })
-  }
-
-  const getInstallmentsByType = (type: ExpenseType) => {
-    return installments.filter((installment) => installment.type === type && installment.userId === currentUser?.id)
-  }
-
-  const addCategory = (category: string) => {
-    const normalizedCategory = category.toLowerCase().replace(/\s+/g, "_")
-    if (!categories.includes(normalizedCategory)) {
-      setCategories((prev) => [...prev, normalizedCategory])
+      await addDoc(collection(db, "familyMembers"), newMember)
+      toast({
+        title: "Membro adicionado",
+        description: `${member.name} foi adicionado à família.`,
+      })
+    } catch (error: any) {
+      console.error("Error adding family member:", error)
+      toast({
+        title: "Erro ao adicionar membro",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
     }
-  }
+  }, [])
 
-  const deleteCategory = (category: string) => {
-    setCategories((prev) => prev.filter((c) => c !== category))
-  }
-
-  const addFamilyMember = (member: Omit<FamilyMember, "id" | "createdAt">) => {
-    const newMember: FamilyMember = {
-      ...member,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+  const updateFamilyMember = useCallback(async (id: string, updatedData: Partial<FamilyMember>) => {
+    try {
+      const db = getFirebaseFirestore()
+      const memberRef = doc(db, "familyMembers", id)
+      await updateDoc(memberRef, updatedData)
+      toast({
+        title: "Membro atualizado",
+        description: "As alterações foram salvas com sucesso.",
+      })
+    } catch (error: any) {
+      console.error("Error updating family member:", error)
+      toast({
+        title: "Erro ao atualizar membro",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
     }
-    setFamilyMembers((prev) => [...prev, newMember])
-  }
+  }, [])
 
-  const updateFamilyMember = (id: string, updatedData: Partial<FamilyMember>) => {
-    setFamilyMembers((prev) => prev.map((member) => (member.id === id ? { ...member, ...updatedData } : member)))
-  }
-
-  const deleteFamilyMember = (id: string) => {
-    setFamilyMembers((prev) => prev.filter((member) => member.id !== id))
-  }
+  const deleteFamilyMember = useCallback(async (id: string) => {
+    try {
+      const db = getFirebaseFirestore()
+      const memberRef = doc(db, "familyMembers", id)
+      await deleteDoc(memberRef)
+      toast({
+        title: "Membro removido",
+        description: "O membro foi removido da família.",
+      })
+    } catch (error: any) {
+      console.error("Error deleting family member:", error)
+      toast({
+        title: "Erro ao remover membro",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }, [])
 
   return (
     <ExpenseContext.Provider

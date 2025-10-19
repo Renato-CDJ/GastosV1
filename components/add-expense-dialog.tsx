@@ -20,6 +20,7 @@ import { CategoryManagerDialog } from "@/components/category-manager-dialog"
 import { useExpenses } from "@/lib/expense-context"
 import type { ExpenseCategory, ExpenseType, PaymentMethod } from "@/lib/types"
 import { categoryLabels, paymentMethodLabels } from "@/lib/expense-utils"
+import { useToast } from "@/hooks/use-toast"
 
 const PlusIcon = () => (
   <svg
@@ -31,6 +32,7 @@ const PlusIcon = () => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
   >
     <line x1="12" y1="5" x2="12" y2="19"></line>
     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -39,6 +41,7 @@ const PlusIcon = () => (
 
 export function AddExpenseDialog() {
   const { addExpense } = useExpenses()
+  const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
     description: "",
@@ -53,14 +56,32 @@ export function AddExpenseDialog() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    const amount = Number.parseFloat(formData.amount)
+    if (amount <= 0) {
+      toast({
+        title: "Valor inválido",
+        description: "O valor deve ser maior que zero.",
+        variant: "destructive",
+      })
+      return
+    }
+
     addExpense({
       description: formData.description,
-      amount: Number.parseFloat(formData.amount),
+      amount,
       category: formData.category,
       type: formData.type,
       paymentMethod: formData.paymentMethod,
       date: formData.date,
       notes: formData.notes || undefined,
+    })
+
+    toast({
+      title: "Gasto adicionado!",
+      description: `${formData.description} - ${new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }).format(amount)}`,
     })
 
     // Reset form
@@ -85,7 +106,7 @@ export function AddExpenseDialog() {
           className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
         >
           <PlusIcon />
-          Adicionar Gasto
+          <span>Adicionar Gasto</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md bg-gradient-to-br from-white to-blue-50 border-2 border-blue-200">
@@ -126,7 +147,7 @@ export function AddExpenseDialog() {
                 id="amount"
                 type="number"
                 step="0.01"
-                min="0"
+                min="0.01"
                 placeholder="0,00"
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}

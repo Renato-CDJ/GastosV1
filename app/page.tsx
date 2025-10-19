@@ -113,22 +113,20 @@ export default function Home() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <header className="border-b bg-white/80 backdrop-blur-sm shadow-sm">
-          <div className="container mx-auto px-4 py-6">
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card/50 backdrop-blur-sm">
+          <div className="container mx-auto px-6 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-balance bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Controle de Gastos
-                </h1>
-                <p className="text-slate-600 mt-1">Gerencie suas finanças pessoais e familiares</p>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Controle Financeiro</h1>
+                <p className="text-muted-foreground mt-1 text-sm">Gerencie suas finanças com clareza</p>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-sm text-slate-600">Bem-vindo,</p>
-                  <p className="font-semibold text-slate-800">{currentUser?.displayName}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Usuário</p>
+                  <p className="font-semibold text-foreground">{currentUser?.displayName}</p>
                 </div>
-                <Button variant="outline" onClick={handleLogout} className="border-slate-300 bg-transparent">
+                <Button variant="outline" onClick={handleLogout} className="border-border bg-transparent">
                   Sair
                 </Button>
                 <AddExpenseDialog />
@@ -137,122 +135,138 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-12 space-y-12">
-          <div className="max-w-4xl mx-auto space-y-8">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold text-slate-900">Escolha uma Visão</h2>
-              <p className="text-slate-600">Selecione entre gastos pessoais ou familiares para análise detalhada</p>
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-slate-700">
-                  <Badge className="bg-indigo-600 text-white mr-2">Familiar</Badge>
-                  compartilhado entre todos os usuários
-                </p>
-                <p className="text-sm text-slate-700 mt-2">
-                  <Badge className="bg-blue-600 text-white mr-2">Pessoal</Badge>e
-                  <Badge className="bg-green-600 text-white mx-2">Parcelamentos</Badge>
-                  são separados por usuário
-                </p>
+        <main className="container mx-auto px-6 py-12 space-y-16">
+          <div className="max-w-5xl mx-auto space-y-10">
+            <div className="text-center space-y-4">
+              <h2 className="text-4xl font-bold text-foreground text-balance">Organize suas finanças</h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
+                Acompanhe gastos pessoais, familiares e parcelamentos em um só lugar
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 p-6 bg-muted/50 rounded-xl border border-border">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+                  Familiar
+                </Badge>
+                <span className="text-sm text-muted-foreground">compartilhado entre usuários</span>
+              </div>
+              <span className="text-muted-foreground">•</span>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-primary text-primary">
+                  Pessoal
+                </Badge>
+                <Badge variant="outline" className="border-primary text-primary">
+                  Parcelamentos
+                </Badge>
+                <span className="text-sm text-muted-foreground">individuais por usuário</span>
               </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
-              <Link href="/personal">
-                <Card className="hover:shadow-xl transition-all cursor-pointer group h-full border-2 hover:border-blue-300 bg-white">
-                  <CardHeader>
+              <Link href="/personal" className="group">
+                <Card className="h-full border-2 border-border hover:border-primary transition-all duration-300 hover:shadow-lg bg-card">
+                  <CardHeader className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
+                      <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                         <UserIcon />
                       </div>
-                      <div className="group-hover:translate-x-1 transition-transform text-blue-600">
+                      <div className="group-hover:translate-x-1 transition-transform text-muted-foreground group-hover:text-primary">
                         <ArrowRightIcon />
                       </div>
                     </div>
-                    <CardTitle className="text-2xl text-slate-900">Pessoal</CardTitle>
-                    <CardDescription className="text-slate-600">Acompanhe seus gastos individuais</CardDescription>
+                    <div>
+                      <CardTitle className="text-2xl text-foreground">Pessoal</CardTitle>
+                      <CardDescription className="text-muted-foreground mt-1">Seus gastos individuais</CardDescription>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Total este mês</span>
-                        <span className="font-mono font-semibold text-blue-600">
+                  <CardContent className="space-y-6">
+                    <div className="space-y-3">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-sm text-muted-foreground">Este mês</span>
+                        <span className="text-2xl font-bold font-mono text-foreground">
                           {formatCurrency(personalStats.total)}
                         </span>
                       </div>
+                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: "65%" }} />
+                      </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Transações</span>
-                        <span className="font-semibold text-slate-900">{personalStats.count}</span>
+                        <span className="text-muted-foreground">Transações</span>
+                        <span className="font-semibold text-foreground">{personalStats.count}</span>
                       </div>
                     </div>
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" variant="default">
-                      Ver Dashboard
-                      <span className="ml-2">
-                        <TrendingUpIcon />
-                      </span>
-                    </Button>
                   </CardContent>
                 </Card>
               </Link>
 
-              <Link href="/family">
-                <Card className="hover:shadow-xl transition-all cursor-pointer group h-full border-2 hover:border-indigo-300 bg-white">
-                  <CardHeader>
+              <Link href="/family" className="group">
+                <Card className="h-full border-2 border-border hover:border-secondary transition-all duration-300 hover:shadow-lg bg-card">
+                  <CardHeader className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                      <div className="h-14 w-14 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary">
                         <UsersIcon />
                       </div>
-                      <div className="group-hover:translate-x-1 transition-transform text-indigo-600">
+                      <div className="group-hover:translate-x-1 transition-transform text-muted-foreground group-hover:text-secondary">
                         <ArrowRightIcon />
                       </div>
                     </div>
-                    <CardTitle className="text-2xl text-slate-900">Familiar</CardTitle>
-                    <CardDescription className="text-slate-600">Gerencie despesas da família</CardDescription>
+                    <div>
+                      <CardTitle className="text-2xl text-foreground">Familiar</CardTitle>
+                      <CardDescription className="text-muted-foreground mt-1">Despesas compartilhadas</CardDescription>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Total este mês</span>
-                        <span className="font-mono font-semibold text-indigo-600">
+                  <CardContent className="space-y-6">
+                    <div className="space-y-3">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-sm text-muted-foreground">Este mês</span>
+                        <span className="text-2xl font-bold font-mono text-foreground">
                           {formatCurrency(familyStats.total)}
                         </span>
                       </div>
+                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-secondary rounded-full" style={{ width: "45%" }} />
+                      </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Transações</span>
-                        <span className="font-semibold text-slate-900">{familyStats.count}</span>
+                        <span className="text-muted-foreground">Transações</span>
+                        <span className="font-semibold text-foreground">{familyStats.count}</span>
                       </div>
                     </div>
-                    <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" variant="default">
-                      Ver Dashboard
-                      <span className="ml-2">
-                        <TrendingUpIcon />
-                      </span>
-                    </Button>
                   </CardContent>
                 </Card>
               </Link>
 
-              <Link href="/installments">
-                <Card className="hover:shadow-xl transition-all cursor-pointer group h-full border-2 hover:border-green-300 bg-white">
-                  <CardHeader>
+              <Link href="/installments" className="group">
+                <Card className="h-full border-2 border-border hover:border-chart-3 transition-all duration-300 hover:shadow-lg bg-card">
+                  <CardHeader className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white shadow-lg">
+                      <div className="h-14 w-14 rounded-2xl bg-chart-3/10 flex items-center justify-center text-[hsl(var(--chart-3))]">
                         <CreditCardIcon />
                       </div>
-                      <div className="group-hover:translate-x-1 transition-transform text-green-600">
+                      <div className="group-hover:translate-x-1 transition-transform text-muted-foreground group-hover:text-[hsl(var(--chart-3))]">
                         <ArrowRightIcon />
                       </div>
                     </div>
-                    <CardTitle className="text-2xl text-slate-900">Parcelamentos</CardTitle>
-                    <CardDescription className="text-slate-600">Gerencie compras parceladas</CardDescription>
+                    <div>
+                      <CardTitle className="text-2xl text-foreground">Parcelamentos</CardTitle>
+                      <CardDescription className="text-muted-foreground mt-1">Compras parceladas</CardDescription>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Parcelamentos ativos</span>
-                        <span className="font-semibold text-green-600">{installments.length}</span>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-3">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-sm text-muted-foreground">Ativos</span>
+                        <span className="text-2xl font-bold font-mono text-foreground">{installments.length}</span>
+                      </div>
+                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-chart-3 rounded-full"
+                          style={{ width: `${Math.min((installments.length / 10) * 100, 100)}%` }}
+                        />
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Total em aberto</span>
-                        <span className="font-mono font-semibold text-slate-900">
+                        <span className="text-muted-foreground">Em aberto</span>
+                        <span className="font-semibold font-mono text-foreground">
                           {formatCurrency(
                             installments.reduce(
                               (sum, inst) =>
@@ -263,12 +277,6 @@ export default function Home() {
                         </span>
                       </div>
                     </div>
-                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white" variant="default">
-                      Ver Parcelamentos
-                      <span className="ml-2">
-                        <TrendingUpIcon />
-                      </span>
-                    </Button>
                   </CardContent>
                 </Card>
               </Link>
@@ -276,6 +284,10 @@ export default function Home() {
           </div>
 
           <div className="max-w-6xl mx-auto">
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold text-foreground">Visão Geral</h3>
+              <p className="text-muted-foreground mt-1">Comparação de gastos mensais</p>
+            </div>
             <ComparisonChart />
           </div>
         </main>

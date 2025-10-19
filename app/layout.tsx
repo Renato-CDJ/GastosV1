@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { UserProvider } from "@/lib/user-context"
 import { ExpenseProvider } from "@/lib/expense-context"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,7 +31,10 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased">
         <UserProvider>
-          <ExpenseProvider>{children}</ExpenseProvider>
+          <ExpenseProvider>
+            {children}
+            <Toaster />
+          </ExpenseProvider>
         </UserProvider>
       </body>
     </html>
