@@ -42,6 +42,7 @@ interface ExpenseContextType {
   addFamilyMember: (member: Omit<FamilyMember, "id" | "createdAt">) => void
   updateFamilyMember: (id: string, member: Partial<FamilyMember>) => void
   deleteFamilyMember: (id: string) => void
+  hasPermissionError: boolean
 }
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined)
@@ -64,7 +65,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     "servicos",
     "outros",
   ])
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [hasPermissionError, setHasPermissionError] = useState(false)
+  const [permissionErrorShown, setPermissionErrorShown] = useState(false)
 
   useEffect(() => {
     if (!currentUser) {
@@ -73,79 +75,121 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       setInstallments([])
       setSalaryState([])
       setFamilyMembers([])
-      setIsLoaded(true)
+      setHasPermissionError(false)
+      setPermissionErrorShown(false)
       return
     }
 
     const db = getFirebaseFirestore()
 
-    const expensesQuery = query(collection(db, "expenses"))
-    const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
-      const expensesData: Expense[] = []
-      snapshot.forEach((doc) => {
-        const data = doc.data()
-        if (data.type === "family" || data.userId === currentUser.id) {
-          expensesData.push({ id: doc.id, ...data } as Expense)
+    const handlePermissionError = (error: any, collectionName: string) => {
+      if (error.code === "permission-denied" || error.message?.includes("permission")) {
+        console.error(`[v0] Permission denied for ${collectionName}:`, error)
+        setHasPermissionError(true)
+
+        if (!permissionErrorShown) {
+          setPermissionErrorShown(true)
+          toast({
+            title: "Configuração do Firebase necessária",
+            description:
+              "As regras de segurança do Firestore precisam ser configuradas. Consulte o arquivo FIREBASE_SETUP.md para instruções.",
+            variant: "destructive",
+            duration: 10000,
+          })
         }
-      })
-      setExpenses(expensesData)
-    })
+      } else {
+        console.error(`[v0] Error in ${collectionName} listener:`, error)
+      }
+    }
+
+    const expensesQuery = query(collection(db, "expenses"))
+    const unsubscribeExpenses = onSnapshot(
+      expensesQuery,
+      (snapshot) => {
+        const expensesData: Expense[] = []
+        snapshot.forEach((doc) => {
+          const data = doc.data()
+          if (data.type === "family" || data.userId === currentUser.id) {
+            expensesData.push({ id: doc.id, ...data } as Expense)
+          }
+        })
+        setExpenses(expensesData)
+      },
+      (error) => handlePermissionError(error, "expenses"),
+    )
 
     const budgetsQuery = query(collection(db, "budgets"))
-    const unsubscribeBudgets = onSnapshot(budgetsQuery, (snapshot) => {
-      const budgetsData: CategoryBudget[] = []
-      snapshot.forEach((doc) => {
-        const data = doc.data()
-        if (data.type === "family" || data.userId === currentUser.id) {
-          budgetsData.push({ ...data } as CategoryBudget)
-        }
-      })
-      setBudgets(budgetsData)
-    })
+    const unsubscribeBudgets = onSnapshot(
+      budgetsQuery,
+      (snapshot) => {
+        const budgetsData: CategoryBudget[] = []
+        snapshot.forEach((doc) => {
+          const data = doc.data()
+          if (data.type === "family" || data.userId === currentUser.id) {
+            budgetsData.push({ ...data } as CategoryBudget)
+          }
+        })
+        setBudgets(budgetsData)
+      },
+      (error) => handlePermissionError(error, "budgets"),
+    )
 
     const installmentsQuery = query(collection(db, "installments"), where("userId", "==", currentUser.id))
-    const unsubscribeInstallments = onSnapshot(installmentsQuery, (snapshot) => {
-      const installmentsData: Installment[] = []
-      snapshot.forEach((doc) => {
-        installmentsData.push({ id: doc.id, ...doc.data() } as Installment)
-      })
-      setInstallments(installmentsData)
-    })
+    const unsubscribeInstallments = onSnapshot(
+      installmentsQuery,
+      (snapshot) => {
+        const installmentsData: Installment[] = []
+        snapshot.forEach((doc) => {
+          installmentsData.push({ id: doc.id, ...doc.data() } as Installment)
+        })
+        setInstallments(installmentsData)
+      },
+      (error) => handlePermissionError(error, "installments"),
+    )
 
     const salaryQuery = query(collection(db, "salary"))
-    const unsubscribeSalary = onSnapshot(salaryQuery, (snapshot) => {
-      const salaryData: Salary[] = []
-      snapshot.forEach((doc) => {
-        const data = doc.data()
-        if (data.type === "family" || data.userId === currentUser.id) {
-          salaryData.push({ ...data } as Salary)
-        }
-      })
-      setSalaryState(salaryData)
-    })
+    const unsubscribeSalary = onSnapshot(
+      salaryQuery,
+      (snapshot) => {
+        const salaryData: Salary[] = []
+        snapshot.forEach((doc) => {
+          const data = doc.data()
+          if (data.type === "family" || data.userId === currentUser.id) {
+            salaryData.push({ ...data } as Salary)
+          }
+        })
+        setSalaryState(salaryData)
+      },
+      (error) => handlePermissionError(error, "salary"),
+    )
 
     const familyMembersQuery = query(collection(db, "familyMembers"))
-    const unsubscribeFamilyMembers = onSnapshot(familyMembersQuery, (snapshot) => {
-      const familyMembersData: FamilyMember[] = []
-      snapshot.forEach((doc) => {
-        familyMembersData.push({ id: doc.id, ...doc.data() } as FamilyMember)
-      })
-      setFamilyMembers(familyMembersData)
-    })
+    const unsubscribeFamilyMembers = onSnapshot(
+      familyMembersQuery,
+      (snapshot) => {
+        const familyMembersData: FamilyMember[] = []
+        snapshot.forEach((doc) => {
+          familyMembersData.push({ id: doc.id, ...doc.data() } as FamilyMember)
+        })
+        setFamilyMembers(familyMembersData)
+      },
+      (error) => handlePermissionError(error, "familyMembers"),
+    )
 
     const loadCategories = async () => {
-      const userCategoriesDoc = doc(db, "userCategories", currentUser.id)
-      const snapshot = await getDocs(query(collection(db, "userCategories"), where("__name__", "==", currentUser.id)))
-      if (!snapshot.empty) {
-        const data = snapshot.docs[0].data()
-        if (data.categories) {
-          setCategories(data.categories)
+      try {
+        const snapshot = await getDocs(query(collection(db, "userCategories"), where("__name__", "==", currentUser.id)))
+        if (!snapshot.empty) {
+          const data = snapshot.docs[0].data()
+          if (data.categories) {
+            setCategories(data.categories)
+          }
         }
+      } catch (error: any) {
+        handlePermissionError(error, "userCategories")
       }
     }
     loadCategories()
-
-    setIsLoaded(true)
 
     return () => {
       unsubscribeExpenses()
@@ -575,6 +619,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         addFamilyMember,
         updateFamilyMember,
         deleteFamilyMember,
+        hasPermissionError,
       }}
     >
       {children}

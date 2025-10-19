@@ -7,43 +7,42 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
 
-  /* Updated to sophisticated neutral palette with emerald accent */
-  --background: 40 20% 97%;
-  --foreground: 240 10% 4%;
+  /* Updated color palette with vibrant emerald green and warm neutrals for financial app */
+  --background: 45 20% 96%;
+  --foreground: 222 47% 11%;
 
-  --muted: 40 15% 92%;
-  --muted-foreground: 240 4% 46%;
+  --muted: 45 15% 90%;
+  --muted-foreground: 222 13% 45%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 4%;
+  --popover-foreground: 222 47% 11%;
 
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 4%;
+  --card-foreground: 222 47% 11%;
 
-  --border: 40 10% 88%;
-  --input: 40 10% 88%;
+  --border: 45 10% 85%;
+  --input: 45 10% 85%;
 
-  --primary: 158 64% 52%;
+  --primary: 158 64% 45%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 240 5% 26%;
+  --secondary: 222 47% 11%;
   --secondary-foreground: 0 0% 100%;
 
-  --accent: 40 15% 92%;
-  --accent-foreground: 240 10% 4%;
+  --accent: 158 64% 95%;
+  --accent-foreground: 158 64% 25%;
 
-  --destructive: 0 72% 51%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --success: 158 64% 52%;
+  --success: 158 64% 45%;
   --success-foreground: 0 0% 100%;
 
-  --ring: 158 64% 52%;
+  --ring: 158 64% 45%;
   --radius: 0.75rem;
 
-  /* Updated chart colors to match new palette */
-  --chart-1: 158 64% 52%;
-  --chart-2: 240 5% 26%;
+  --chart-1: 158 64% 45%;
+  --chart-2: 222 47% 11%;
   --chart-3: 200 98% 39%;
   --chart-4: 280 65% 60%;
   --chart-5: 25 95% 53%;
@@ -59,37 +58,37 @@
 }
 
 .dark {
-  --background: 240 10% 4%;
-  --foreground: 40 20% 97%;
+  --background: 222 47% 11%;
+  --foreground: 45 20% 96%;
 
-  --muted: 240 5% 15%;
-  --muted-foreground: 240 4% 64%;
+  --muted: 222 30% 18%;
+  --muted-foreground: 222 13% 65%;
 
-  --popover: 240 10% 4%;
-  --popover-foreground: 40 20% 97%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 45 20% 96%;
 
-  --card: 240 5% 8%;
-  --card-foreground: 40 20% 97%;
+  --card: 222 30% 15%;
+  --card-foreground: 45 20% 96%;
 
-  --border: 240 5% 15%;
-  --input: 240 5% 15%;
+  --border: 222 30% 18%;
+  --input: 222 30% 18%;
 
-  --primary: 158 64% 52%;
-  --primary-foreground: 240 10% 4%;
+  --primary: 158 64% 50%;
+  --primary-foreground: 222 47% 11%;
 
-  --secondary: 240 5% 20%;
-  --secondary-foreground: 40 20% 97%;
+  --secondary: 222 30% 25%;
+  --secondary-foreground: 45 20% 96%;
 
-  --accent: 240 5% 15%;
-  --accent-foreground: 40 20% 97%;
+  --accent: 222 30% 18%;
+  --accent-foreground: 158 64% 50%;
 
-  --destructive: 0 62% 30%;
-  --destructive-foreground: 40 20% 97%;
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 45 20% 96%;
 
-  --success: 158 64% 52%;
-  --success-foreground: 240 10% 4%;
+  --success: 158 64% 50%;
+  --success-foreground: 222 47% 11%;
 
-  --ring: 158 64% 52%;
+  --ring: 158 64% 50%;
 
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
@@ -102,7 +101,9 @@
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

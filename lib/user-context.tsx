@@ -39,7 +39,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const auth = getFirebaseAuth()
       const db = getFirebaseFirestore()
 
+      console.log("[v0] Setting up auth state listener")
+
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        console.log("[v0] Auth state changed, user:", firebaseUser?.email || "null")
+
         if (firebaseUser) {
           // Get additional user data from Firestore
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid))
@@ -51,8 +55,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
             displayName: firebaseUser.displayName || userData?.displayName || "",
             createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
           }
+          console.log("[v0] User authenticated:", user.displayName)
           setCurrentUser(user)
         } else {
+          console.log("[v0] No user authenticated")
           setCurrentUser(null)
         }
         setLoading(false)
@@ -60,7 +66,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       return () => unsubscribe()
     } catch (error) {
-      console.error("Firebase initialization error:", error)
+      console.error("[v0] Firebase initialization error:", error)
       setLoading(false)
     }
   }, [])
@@ -71,11 +77,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      console.log("[v0] Attempting Firebase login")
       const auth = getFirebaseAuth()
       await signInWithEmailAndPassword(auth, email, password)
+      console.log("[v0] Firebase login successful")
     } catch (error: any) {
-      console.error("Login error:", error)
-      throw new Error(error.message || "Erro ao fazer login")
+      console.error("[v0] Login error:", error)
+      let errorMessage = "Erro ao fazer login"
+
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "Usuário não encontrado. Verifique o email."
+      } else if (error.code === "auth/wrong-password") {
+        errorMessage = "Senha incorreta. Tente novamente."
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Email inválido."
+      } else if (error.code === "auth/user-disabled") {
+        errorMessage = "Esta conta foi desativada."
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Muitas tentativas. Tente novamente mais tarde."
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Erro de conexão. Verifique sua internet."
+      }
+
+      throw new Error(errorMessage)
     }
   }
 
@@ -102,7 +126,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
       })
     } catch (error: any) {
       console.error("Registration error:", error)
-      throw new Error(error.message || "Erro ao criar conta")
+      let errorMessage = "Erro ao criar conta"
+
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "Este email já está cadastrado. Faça login ou use outro email."
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Email inválido."
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres."
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Erro de conexão. Verifique sua internet."
+      } else if (error.code === "permission-denied" || error.message?.includes("permission")) {
+        errorMessage = "Erro de permissão. Verifique as configurações do Firebase."
+      }
+
+      throw new Error(errorMessage)
     }
   }
 

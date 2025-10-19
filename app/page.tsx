@@ -11,6 +11,7 @@ import { AuthGuard } from "@/components/auth-guard"
 import { useUser } from "@/lib/user-context"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
+import { FirebaseConfigAlert } from "@/components/firebase-config-alert"
 
 const UserIcon = () => (
   <svg
@@ -136,6 +137,8 @@ export default function Home() {
         </header>
 
         <main className="container mx-auto px-6 py-12 space-y-16">
+          <FirebaseConfigAlert />
+
           <div className="max-w-5xl mx-auto space-y-10">
             <div className="text-center space-y-4">
               <h2 className="text-4xl font-bold text-foreground text-balance">Organize suas finanças</h2>
