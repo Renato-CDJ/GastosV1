@@ -198,11 +198,21 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       unsubscribeSalary()
       unsubscribeFamilyMembers()
     }
-  }, [currentUser])
+  }, [currentUser, permissionErrorShown])
 
   const addExpense = useCallback(
     async (expense: Omit<Expense, "id" | "createdAt" | "userId">) => {
-      if (!currentUser) return
+      if (!currentUser) {
+        console.error("[v0] Cannot add expense: currentUser is null")
+        toast({
+          title: "Erro de autenticação",
+          description: "Você precisa estar logado para adicionar gastos.",
+          variant: "destructive",
+        })
+        throw new Error("User not authenticated")
+      }
+
+      console.log("[v0] Adding expense:", { expense, currentUser: currentUser.id })
 
       try {
         const db = getFirebaseFirestore()
@@ -211,6 +221,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
           createdAt: new Date().toISOString(),
           userId: expense.type === "personal" ? currentUser.id : undefined,
         }
+
+        console.log("[v0] Prepared expense data:", newExpense)
 
         const cleanExpense = Object.entries(newExpense).reduce(
           (acc, [key, value]) => {
@@ -222,9 +234,12 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
           {} as Record<string, any>,
         )
 
-        await addDoc(collection(db, "expenses"), cleanExpense)
+        console.log("[v0] Clean expense data:", cleanExpense)
+
+        const docRef = await addDoc(collection(db, "expenses"), cleanExpense)
+        console.log("[v0] Expense added successfully with ID:", docRef.id)
       } catch (error: any) {
-        console.error("Error adding expense:", error)
+        console.error("[v0] Error adding expense:", error)
         toast({
           title: "Erro ao adicionar gasto",
           description: error.message || "Tente novamente mais tarde.",
