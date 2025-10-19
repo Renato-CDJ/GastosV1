@@ -62,7 +62,7 @@ export default function PersonalDashboard() {
                 <p className="text-blue-100 mt-1">Análise detalhada dos seus gastos pessoais</p>
               </div>
             </div>
-            <AddExpenseDialog />
+            <AddExpenseDialog defaultType="personal" />
           </div>
         </div>
       </header>

@@ -212,7 +212,17 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
           userId: expense.type === "personal" ? currentUser.id : undefined,
         }
 
-        await addDoc(collection(db, "expenses"), newExpense)
+        const cleanExpense = Object.entries(newExpense).reduce(
+          (acc, [key, value]) => {
+            if (value !== undefined) {
+              acc[key] = value
+            }
+            return acc
+          },
+          {} as Record<string, any>,
+        )
+
+        await addDoc(collection(db, "expenses"), cleanExpense)
       } catch (error: any) {
         console.error("Error adding expense:", error)
         toast({

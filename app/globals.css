@@ -4,10 +4,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-jetbrains-mono);
-
-  /* Updated color palette with vibrant emerald green and warm neutrals for financial app */
   --background: 45 20% 96%;
   --foreground: 222 47% 11%;
 

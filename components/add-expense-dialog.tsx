@@ -39,7 +39,11 @@ const PlusIcon = () => (
   </svg>
 )
 
-export function AddExpenseDialog() {
+interface AddExpenseDialogProps {
+  defaultType?: ExpenseType
+}
+
+export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogProps) {
   const { addExpense } = useExpenses()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
@@ -47,7 +51,7 @@ export function AddExpenseDialog() {
     description: "",
     amount: "",
     category: "outros" as ExpenseCategory,
-    type: "personal" as ExpenseType,
+    type: defaultType,
     paymentMethod: "dinheiro" as PaymentMethod,
     date: new Date().toISOString().split("T")[0],
     notes: "",
@@ -84,12 +88,11 @@ export function AddExpenseDialog() {
       }).format(amount)}`,
     })
 
-    // Reset form
     setFormData({
       description: "",
       amount: "",
       category: "outros",
-      type: "personal",
+      type: defaultType,
       paymentMethod: "dinheiro",
       date: new Date().toISOString().split("T")[0],
       notes: "",

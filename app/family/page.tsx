@@ -62,7 +62,7 @@ export default function FamilyDashboard() {
                 <p className="text-indigo-100 mt-1">Análise detalhada dos gastos da família</p>
               </div>
             </div>
-            <AddExpenseDialog />
+            <AddExpenseDialog defaultType="family" />
           </div>
         </div>
       </header>

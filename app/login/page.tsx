@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +29,7 @@ const UserIcon = () => (
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, register } = useUser()
+  const { login, register, isAuthenticated, loading: authLoading } = useUser()
   const { toast } = useToast()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -37,6 +37,24 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("login")
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      console.log("[v0] User already authenticated, redirecting to home")
+      router.push("/")
+    }
+  }, [isAuthenticated, authLoading, router])
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="h-12 w-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-white font-medium">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -80,12 +98,11 @@ export default function LoginPage() {
     try {
       console.log("[v0] Calling login function")
       await login(email, password)
-      console.log("[v0] Login successful, redirecting to home")
+      console.log("[v0] Login successful, waiting for auth state update")
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo de volta.",
       })
-      router.push("/")
     } catch (err: any) {
       console.log("[v0] Login error:", err.message)
       const errorMessage = err.message || "Erro ao fazer login"
@@ -95,7 +112,6 @@ export default function LoginPage() {
         description: errorMessage,
         variant: "destructive",
       })
-    } finally {
       setLoading(false)
     }
   }
@@ -128,12 +144,11 @@ export default function LoginPage() {
     try {
       console.log("[v0] Calling register function")
       await register(email, password, displayName)
-      console.log("[v0] Registration successful, redirecting to home")
+      console.log("[v0] Registration successful, waiting for auth state update")
       toast({
         title: "Conta criada com sucesso!",
         description: `Bem-vindo, ${displayName}!`,
       })
-      router.push("/")
     } catch (err: any) {
       console.log("[v0] Registration error:", err.message)
       const errorMessage = err.message || "Erro ao criar conta"
@@ -143,37 +158,36 @@ export default function LoginPage() {
         description: errorMessage,
         variant: "destructive",
       })
-    } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-2 shadow-2xl bg-card/95 backdrop-blur-sm">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md border-0 shadow-2xl bg-white">
         <CardHeader className="text-center space-y-4 pb-6">
-          <div className="mx-auto h-20 w-20 rounded-2xl bg-primary/15 flex items-center justify-center text-primary shadow-lg shadow-primary/20 ring-2 ring-primary/20">
+          <div className="mx-auto h-20 w-20 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-lg">
             <UserIcon />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold text-foreground">Bem-vindo</CardTitle>
-            <CardDescription className="text-muted-foreground text-base">
+            <CardTitle className="text-3xl font-bold text-gray-900">Bem-vindo</CardTitle>
+            <CardDescription className="text-gray-600 text-base">
               Entre ou crie uma conta para acessar o sistema
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 p-1">
               <TabsTrigger
                 value="login"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
               >
                 Entrar
               </TabsTrigger>
               <TabsTrigger
                 value="register"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
               >
                 Criar Conta
               </TabsTrigger>
@@ -182,7 +196,7 @@ export default function LoginPage() {
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email" className="text-foreground font-semibold text-sm">
+                  <Label htmlFor="login-email" className="text-gray-900 font-semibold text-sm">
                     Email
                   </Label>
                   <Input
@@ -192,12 +206,13 @@ export default function LoginPage() {
                     value={email}
                     onChange={handleEmailChange}
                     required
-                    className="border-border focus:border-primary focus:ring-primary/20 transition-colors h-11"
+                    disabled={loading}
+                    className="border-gray-300 focus:border-blue-600 focus:ring-blue-600/20 transition-colors h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="login-password" className="text-foreground font-semibold text-sm">
+                  <Label htmlFor="login-password" className="text-gray-900 font-semibold text-sm">
                     Senha
                   </Label>
                   <Input
@@ -207,19 +222,20 @@ export default function LoginPage() {
                     value={password}
                     onChange={handlePasswordChange}
                     required
-                    className="border-border focus:border-primary focus:ring-primary/20 transition-colors h-11"
+                    disabled={loading}
+                    className="border-gray-300 focus:border-blue-600 focus:ring-blue-600/20 transition-colors h-11"
                   />
                 </div>
 
                 {error && (
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-                    <p className="text-sm text-destructive font-medium">{error}</p>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-sm text-red-600 font-medium">{error}</p>
                   </div>
                 )}
 
                 <Button
                   type="submit"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all h-11 font-semibold"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all h-11 font-semibold"
                   disabled={loading}
                 >
                   {loading ? "Entrando..." : "Entrar"}
@@ -230,7 +246,7 @@ export default function LoginPage() {
             <TabsContent value="register">
               <form onSubmit={handleRegister} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="register-name" className="text-foreground font-semibold text-sm">
+                  <Label htmlFor="register-name" className="text-gray-900 font-semibold text-sm">
                     Nome Completo
                   </Label>
                   <Input
@@ -240,12 +256,13 @@ export default function LoginPage() {
                     value={displayName}
                     onChange={handleDisplayNameChange}
                     required
-                    className="border-border focus:border-primary focus:ring-primary/20 transition-colors h-11"
+                    disabled={loading}
+                    className="border-gray-300 focus:border-blue-600 focus:ring-blue-600/20 transition-colors h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="register-email" className="text-foreground font-semibold text-sm">
+                  <Label htmlFor="register-email" className="text-gray-900 font-semibold text-sm">
                     Email
                   </Label>
                   <Input
@@ -255,12 +272,13 @@ export default function LoginPage() {
                     value={email}
                     onChange={handleEmailChange}
                     required
-                    className="border-border focus:border-primary focus:ring-primary/20 transition-colors h-11"
+                    disabled={loading}
+                    className="border-gray-300 focus:border-blue-600 focus:ring-blue-600/20 transition-colors h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="register-password" className="text-foreground font-semibold text-sm">
+                  <Label htmlFor="register-password" className="text-gray-900 font-semibold text-sm">
                     Senha
                   </Label>
                   <Input
@@ -270,15 +288,16 @@ export default function LoginPage() {
                     value={password}
                     onChange={handlePasswordChange}
                     required
-                    className="border-border focus:border-primary focus:ring-primary/20 transition-colors h-11"
+                    disabled={loading}
+                    className="border-gray-300 focus:border-blue-600 focus:ring-blue-600/20 transition-colors h-11"
                   />
-                  <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
+                  <p className="text-xs text-gray-500">Mínimo de 6 caracteres</p>
                 </div>
 
                 {error && (
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex gap-2">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
                     <svg
-                      className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5"
+                      className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -290,13 +309,13 @@ export default function LoginPage() {
                         d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    <p className="text-sm text-destructive font-medium">{error}</p>
+                    <p className="text-sm text-red-600 font-medium">{error}</p>
                   </div>
                 )}
 
                 <Button
                   type="submit"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all h-11 font-semibold"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all h-11 font-semibold"
                   disabled={loading}
                 >
                   {loading ? "Criando conta..." : "Criar Conta"}
