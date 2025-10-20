@@ -70,3 +70,5 @@ export async function getFirebaseAnalytics(): Promise<Analytics | null> {
 
 // Export app initializer for direct use if needed
 export const getFirebaseApp = initializeFirebaseApp
+
+export const db = getFirebaseFirestore()

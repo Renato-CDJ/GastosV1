@@ -58,11 +58,24 @@ service cloud.firestore {
                         request.resource.data.userId == request.auth.uid));
     }
     
-    // Installments collection - only owner can access
+    // Installments collection - supports both personal and family installments
     match /installments/{installmentId} {
-      allow read, list: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Allow authenticated users to list/read all installments
+      // Client-side filtering will handle personal vs family
+      allow read, list: if isAuthenticated();
+      
+      // Allow create if user is authenticated and sets correct userId/type
+      allow create: if isAuthenticated() && 
+                       ((request.resource.data.type == "personal" && 
+                         request.resource.data.userId == request.auth.uid) ||
+                        (request.resource.data.type == "family" && 
+                         (!("userId" in request.resource.data) || 
+                          request.resource.data.userId == null)));
+      
+      // Allow update/delete only for own installments or family installments
+      allow update, delete: if isAuthenticated() && 
+                               (resource.data.type == "family" || 
+                                resource.data.userId == request.auth.uid);
     }
     
     // Salary collection

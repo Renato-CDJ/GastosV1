@@ -10,7 +10,7 @@ import {
   updateProfile,
 } from "firebase/auth"
 import { getFirebaseAuth, getFirebaseFirestore } from "./firebase"
-import { doc, setDoc, getDoc } from "firebase/firestore"
+import { doc, setDoc, getDoc, collection, getDocs, updateDoc } from "firebase/firestore"
 
 interface UserContextType {
   currentUser: User | null
@@ -20,6 +20,9 @@ interface UserContextType {
   logout: () => Promise<void>
   isAuthenticated: boolean
   loading: boolean
+  isAdmin: boolean
+  updateUserFamilyAccess: (userId: string, hasAccess: boolean) => Promise<void>
+  fetchAllUsers: () => Promise<void>
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
@@ -54,8 +57,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
             username: firebaseUser.email?.split("@")[0] || "",
             displayName: firebaseUser.displayName || userData?.displayName || "",
             createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+            role: userData?.role || "user",
+            hasFamilyAccess: userData?.hasFamilyAccess ?? true,
           }
-          console.log("[v0] User authenticated:", user.displayName)
+          console.log("[v0] User authenticated:", user.displayName, "Role:", user.role)
           setCurrentUser(user)
         } else {
           console.log("[v0] No user authenticated")
@@ -122,6 +127,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       await setDoc(doc(db, "users", user.uid), {
         displayName,
         email,
+        role: "user",
+        hasFamilyAccess: false,
         createdAt: new Date().toISOString(),
       })
     } catch (error: any) {
@@ -158,6 +165,59 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const fetchAllUsers = async () => {
+    if (!currentUser || currentUser.role !== "admin") {
+      console.log("[v0] Only admins can fetch all users")
+      return
+    }
+
+    try {
+      const db = getFirebaseFirestore()
+      const usersCollection = collection(db, "users")
+      const usersSnapshot = await getDocs(usersCollection)
+
+      const usersList: User[] = usersSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          username: data.email?.split("@")[0] || "",
+          displayName: data.displayName || "",
+          createdAt: data.createdAt || new Date().toISOString(),
+          role: data.role || "user",
+          hasFamilyAccess: data.hasFamilyAccess ?? false,
+        }
+      })
+
+      setUsers(usersList)
+      console.log("[v0] Fetched users:", usersList.length)
+    } catch (error) {
+      console.error("[v0] Error fetching users:", error)
+    }
+  }
+
+  const updateUserFamilyAccess = async (userId: string, hasAccess: boolean) => {
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new Error("Apenas administradores podem alterar permissões")
+    }
+
+    try {
+      const db = getFirebaseFirestore()
+      await updateDoc(doc(db, "users", userId), {
+        hasFamilyAccess: hasAccess,
+      })
+
+      // Update local users list
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => (user.id === userId ? { ...user, hasFamilyAccess: hasAccess } : user)),
+      )
+
+      console.log("[v0] Updated family access for user:", userId, "Access:", hasAccess)
+    } catch (error) {
+      console.error("[v0] Error updating family access:", error)
+      throw new Error("Erro ao atualizar permissões")
+    }
+  }
+
   return (
     <UserContext.Provider
       value={{
@@ -168,6 +228,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         logout,
         isAuthenticated: currentUser !== null,
         loading,
+        isAdmin: currentUser?.role === "admin",
+        updateUserFamilyAccess,
+        fetchAllUsers,
       }}
     >
       {children}

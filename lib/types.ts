@@ -18,6 +18,8 @@ export interface User {
   username: string
   displayName: string
   createdAt: string
+  role?: "admin" | "user"
+  hasFamilyAccess?: boolean
 }
 
 export interface Expense {
@@ -68,7 +70,7 @@ export interface Installment {
   currentInstallment: number
   installmentAmount: number
   category: ExpenseCategory
-  type: ExpenseType
+  type: "personal" | "family"
   paymentMethod: PaymentMethod
   startDate: string
   dueDay: number

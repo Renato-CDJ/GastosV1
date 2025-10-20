@@ -12,6 +12,11 @@ import { useUser } from "@/lib/user-context"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { FirebaseConfigAlert } from "@/components/firebase-config-alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { doc, updateDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { useToast } from "@/hooks/use-toast"
+import { useState } from "react"
 
 const UserIcon = () => (
   <svg
@@ -63,6 +68,21 @@ const ArrowRightIcon = () => (
   </svg>
 )
 
+const ShieldIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+  </svg>
+)
+
 const TrendingUpIcon = () => (
   <svg
     width="16"
@@ -95,11 +115,30 @@ const CreditCardIcon = () => (
   </svg>
 )
 
+const SettingsIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M12 1v6m0 6v6m-9-9h6m6 0h6"></path>
+    <path d="m4.93 4.93 4.24 4.24m5.66 5.66 4.24 4.24m0-12.73-4.24 4.24m-5.66 5.66L4.93 19.07"></path>
+  </svg>
+)
+
 export default function Home() {
   const { getExpensesByType, getExpensesByDateRange, installments } = useExpenses()
-  const { currentUser, logout } = useUser()
+  const { currentUser, logout, isAdmin } = useUser()
   const router = useRouter()
   const currentMonth = getCurrentMonthRange()
+  const { toast } = useToast()
+  const [isUpgrading, setIsUpgrading] = useState(false)
 
   const personalExpenses = getExpensesByDateRange(currentMonth.start, currentMonth.end, "personal")
   const familyExpenses = getExpensesByDateRange(currentMonth.start, currentMonth.end, "family")
@@ -111,6 +150,39 @@ export default function Home() {
     logout()
     router.push("/login")
   }
+
+  const handleUpgradeToAdmin = async () => {
+    if (!currentUser) return
+
+    setIsUpgrading(true)
+    try {
+      const userRef = doc(db, "users", currentUser.id)
+      await updateDoc(userRef, {
+        role: "admin",
+        hasFamilyAccess: true,
+      })
+
+      toast({
+        title: "Sucesso!",
+        description: "Você agora é um administrador. Faça logout e login novamente para aplicar as mudanças.",
+      })
+
+      setTimeout(() => {
+        handleLogout()
+      }, 2000)
+    } catch (error) {
+      console.error("Error upgrading to admin:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar suas permissões. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpgrading(false)
+    }
+  }
+
+  const shouldShowAdminUpgrade = currentUser?.email === "renato.calixto@email.com" && currentUser?.role !== "admin"
 
   return (
     <AuthGuard>
@@ -125,8 +197,30 @@ export default function Home() {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-xs text-blue-200 uppercase tracking-wide">Usuário</p>
-                  <p className="font-semibold">{currentUser?.displayName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">{currentUser?.displayName}</p>
+                    {isAdmin && <Badge className="bg-yellow-500 text-yellow-950 border-0 text-xs">Admin</Badge>}
+                  </div>
                 </div>
+                <Link href="/settings">
+                  <Button
+                    variant="outline"
+                    className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                  >
+                    <SettingsIcon />
+                  </Button>
+                </Link>
+                {isAdmin && (
+                  <Link href="/admin">
+                    <Button
+                      variant="outline"
+                      className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    >
+                      <ShieldIcon />
+                      <span className="ml-2">Admin</span>
+                    </Button>
+                  </Link>
+                )}
                 <Button
                   variant="outline"
                   onClick={handleLogout}
@@ -142,6 +236,26 @@ export default function Home() {
 
         <main className="container mx-auto px-6 py-12 space-y-16">
           <FirebaseConfigAlert />
+
+          {shouldShowAdminUpgrade && (
+            <Alert className="max-w-5xl mx-auto border-yellow-500 bg-yellow-50">
+              <ShieldIcon />
+              <AlertTitle className="text-lg font-semibold">Ativar Acesso de Administrador</AlertTitle>
+              <AlertDescription className="mt-2 space-y-3">
+                <p className="text-sm text-gray-700">
+                  Você é o usuário principal do sistema. Clique no botão abaixo para ativar suas permissões de
+                  administrador e gerenciar todos os usuários e suas permissões de acesso familiar.
+                </p>
+                <Button
+                  onClick={handleUpgradeToAdmin}
+                  disabled={isUpgrading}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  {isUpgrading ? "Ativando..." : "Tornar-me Administrador"}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="max-w-5xl mx-auto space-y-10">
             <div className="text-center space-y-4">
@@ -288,6 +402,33 @@ export default function Home() {
                 </Card>
               </Link>
             </div>
+
+            {isAdmin && (
+              <div className="flex justify-center">
+                <Link href="/admin" className="group">
+                  <Card className="border-2 border-slate-300 hover:border-slate-500 transition-all duration-300 hover:shadow-lg bg-gradient-to-br from-slate-50 to-slate-100">
+                    <CardHeader>
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-xl bg-slate-800 flex items-center justify-center text-white">
+                          <ShieldIcon />
+                        </div>
+                        <div>
+                          <CardTitle className="text-xl text-slate-900 flex items-center gap-2">
+                            Painel Administrativo
+                            <div className="group-hover:translate-x-1 transition-transform text-slate-400 group-hover:text-slate-600">
+                              <ArrowRightIcon />
+                            </div>
+                          </CardTitle>
+                          <CardDescription className="text-slate-600 mt-1">
+                            Gerencie usuários e permissões
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              </div>
+            )}
           </div>
 
           <div className="max-w-6xl mx-auto">
