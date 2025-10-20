@@ -20,11 +20,7 @@ const PlusIcon = () => (
   </svg>
 )
 
-interface AddInstallmentDialogProps {
-  defaultType?: ExpenseType
-}
-
-export function AddInstallmentDialog({ defaultType = "personal" }: AddInstallmentDialogProps) {
+export function AddInstallmentDialog() {
   const { addInstallment } = useExpenses()
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -32,7 +28,7 @@ export function AddInstallmentDialog({ defaultType = "personal" }: AddInstallmen
     totalAmount: "",
     installmentCount: "",
     category: "outros" as ExpenseCategory,
-    type: defaultType,
+    type: "personal" as ExpenseType,
     paymentMethod: "credito" as PaymentMethod,
     startDate: new Date().toISOString().split("T")[0],
     dueDay: "10",
@@ -68,7 +64,7 @@ export function AddInstallmentDialog({ defaultType = "personal" }: AddInstallmen
       totalAmount: "",
       installmentCount: "",
       category: "outros",
-      type: defaultType,
+      type: "personal",
       paymentMethod: "credito",
       startDate: new Date().toISOString().split("T")[0],
       dueDay: "10",

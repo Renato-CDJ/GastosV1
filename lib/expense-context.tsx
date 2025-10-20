@@ -80,22 +80,11 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    console.log("[v0] ExpenseProvider initialized for user:", {
-      id: currentUser.id,
-      email: currentUser.email,
-      role: currentUser.role,
-      hasFamilyAccess: currentUser.hasFamilyAccess,
-    })
-
     const db = getFirebaseFirestore()
 
     const handlePermissionError = (error: any, collectionName: string) => {
       if (error.code === "permission-denied" || error.message?.includes("permission")) {
         console.error(`[v0] Permission denied for ${collectionName}:`, error)
-        console.error(`[v0] User permissions:`, {
-          role: currentUser.role,
-          hasFamilyAccess: currentUser.hasFamilyAccess,
-        })
         setHasPermissionError(true)
 
         if (!permissionErrorShown) {
@@ -120,9 +109,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const expensesData: Expense[] = []
         snapshot.forEach((doc) => {
           const data = doc.data()
-          if (data.type === "family" && currentUser.hasFamilyAccess) {
-            expensesData.push({ id: doc.id, ...data } as Expense)
-          } else if (data.userId === currentUser.id) {
+          if (data.type === "family" || data.userId === currentUser.id) {
             expensesData.push({ id: doc.id, ...data } as Expense)
           }
         })
@@ -138,9 +125,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const budgetsData: CategoryBudget[] = []
         snapshot.forEach((doc) => {
           const data = doc.data()
-          if (data.type === "family" && currentUser.hasFamilyAccess) {
-            budgetsData.push({ ...data } as CategoryBudget)
-          } else if (data.userId === currentUser.id) {
+          if (data.type === "family" || data.userId === currentUser.id) {
             budgetsData.push({ ...data } as CategoryBudget)
           }
         })
@@ -149,18 +134,13 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       (error) => handlePermissionError(error, "budgets"),
     )
 
-    const installmentsQuery = query(collection(db, "installments"))
+    const installmentsQuery = query(collection(db, "installments"), where("userId", "==", currentUser.id))
     const unsubscribeInstallments = onSnapshot(
       installmentsQuery,
       (snapshot) => {
         const installmentsData: Installment[] = []
         snapshot.forEach((doc) => {
-          const data = doc.data()
-          if (data.type === "family" && currentUser.hasFamilyAccess) {
-            installmentsData.push({ id: doc.id, ...data } as Installment)
-          } else if (data.userId === currentUser.id) {
-            installmentsData.push({ id: doc.id, ...data } as Installment)
-          }
+          installmentsData.push({ id: doc.id, ...doc.data() } as Installment)
         })
         setInstallments(installmentsData)
       },
@@ -174,9 +154,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const salaryData: Salary[] = []
         snapshot.forEach((doc) => {
           const data = doc.data()
-          if (data.type === "family" && currentUser.hasFamilyAccess) {
-            salaryData.push({ ...data } as Salary)
-          } else if (data.userId === currentUser.id) {
+          if (data.type === "family" || data.userId === currentUser.id) {
             salaryData.push({ ...data } as Salary)
           }
         })
@@ -185,21 +163,18 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       (error) => handlePermissionError(error, "salary"),
     )
 
-    let unsubscribeFamilyMembers: (() => void) | undefined
-    if (currentUser.hasFamilyAccess) {
-      const familyMembersQuery = query(collection(db, "familyMembers"))
-      unsubscribeFamilyMembers = onSnapshot(
-        familyMembersQuery,
-        (snapshot) => {
-          const familyMembersData: FamilyMember[] = []
-          snapshot.forEach((doc) => {
-            familyMembersData.push({ id: doc.id, ...doc.data() } as FamilyMember)
-          })
-          setFamilyMembers(familyMembersData)
-        },
-        (error) => handlePermissionError(error, "familyMembers"),
-      )
-    }
+    const familyMembersQuery = query(collection(db, "familyMembers"))
+    const unsubscribeFamilyMembers = onSnapshot(
+      familyMembersQuery,
+      (snapshot) => {
+        const familyMembersData: FamilyMember[] = []
+        snapshot.forEach((doc) => {
+          familyMembersData.push({ id: doc.id, ...doc.data() } as FamilyMember)
+        })
+        setFamilyMembers(familyMembersData)
+      },
+      (error) => handlePermissionError(error, "familyMembers"),
+    )
 
     const loadCategories = async () => {
       try {
@@ -221,9 +196,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       unsubscribeBudgets()
       unsubscribeInstallments()
       unsubscribeSalary()
-      if (unsubscribeFamilyMembers) {
-        unsubscribeFamilyMembers()
-      }
+      unsubscribeFamilyMembers()
     }
   }, [currentUser, permissionErrorShown])
 
@@ -237,15 +210,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
           variant: "destructive",
         })
         throw new Error("User not authenticated")
-      }
-
-      if (expense.type === "family" && !currentUser.hasFamilyAccess) {
-        toast({
-          title: "Acesso negado",
-          description: "Você não tem permissão para adicionar gastos familiares.",
-          variant: "destructive",
-        })
-        throw new Error("No family access permission")
       }
 
       console.log("[v0] Adding expense:", { expense, currentUser: currentUser.id })
@@ -393,35 +357,16 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     async (installment: Omit<Installment, "id" | "createdAt" | "paidInstallments" | "userId">) => {
       if (!currentUser) return
 
-      if (installment.type === "family" && !currentUser.hasFamilyAccess) {
-        toast({
-          title: "Acesso negado",
-          description: "Você não tem permissão para adicionar parcelamentos familiares.",
-          variant: "destructive",
-        })
-        throw new Error("No family access permission")
-      }
-
       try {
         const db = getFirebaseFirestore()
         const newInstallment = {
           ...installment,
           createdAt: new Date().toISOString(),
           paidInstallments: [],
-          userId: installment.type === "personal" ? currentUser.id : undefined,
+          userId: currentUser.id,
         }
 
-        const cleanInstallment = Object.entries(newInstallment).reduce(
-          (acc, [key, value]) => {
-            if (value !== undefined) {
-              acc[key] = value
-            }
-            return acc
-          },
-          {} as Record<string, any>,
-        )
-
-        await addDoc(collection(db, "installments"), cleanInstallment)
+        await addDoc(collection(db, "installments"), newInstallment)
         toast({
           title: "Parcelamento adicionado",
           description: "O parcelamento foi registrado com sucesso.",
@@ -545,13 +490,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
 
   const getInstallmentsByType = useCallback(
     (type: ExpenseType) => {
-      return installments.filter((installment) => {
-        if (installment.type !== type) return false
-        if (type === "personal") {
-          return installment.userId === currentUser?.id
-        }
-        return true
-      })
+      return installments.filter((installment) => installment.type === type && installment.userId === currentUser?.id)
     },
     [installments, currentUser?.id],
   )
@@ -615,41 +554,29 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     [categories, currentUser],
   )
 
-  const addFamilyMember = useCallback(
-    async (member: Omit<FamilyMember, "id" | "createdAt">) => {
-      if (!currentUser?.hasFamilyAccess) {
-        toast({
-          title: "Acesso negado",
-          description: "Você não tem permissão para gerenciar membros da família.",
-          variant: "destructive",
-        })
-        throw new Error("No family access permission")
+  const addFamilyMember = useCallback(async (member: Omit<FamilyMember, "id" | "createdAt">) => {
+    try {
+      const db = getFirebaseFirestore()
+      const newMember = {
+        ...member,
+        createdAt: new Date().toISOString(),
       }
 
-      try {
-        const db = getFirebaseFirestore()
-        const newMember = {
-          ...member,
-          createdAt: new Date().toISOString(),
-        }
-
-        await addDoc(collection(db, "familyMembers"), newMember)
-        toast({
-          title: "Membro adicionado",
-          description: `${member.name} foi adicionado à família.`,
-        })
-      } catch (error: any) {
-        console.error("Error adding family member:", error)
-        toast({
-          title: "Erro ao adicionar membro",
-          description: error.message || "Tente novamente mais tarde.",
-          variant: "destructive",
-        })
-        throw error
-      }
-    },
-    [currentUser],
-  )
+      await addDoc(collection(db, "familyMembers"), newMember)
+      toast({
+        title: "Membro adicionado",
+        description: `${member.name} foi adicionado à família.`,
+      })
+    } catch (error: any) {
+      console.error("Error adding family member:", error)
+      toast({
+        title: "Erro ao adicionar membro",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }, [])
 
   const updateFamilyMember = useCallback(async (id: string, updatedData: Partial<FamilyMember>) => {
     try {

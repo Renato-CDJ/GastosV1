@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import type { User } from "./types"
+import type { User, UserPermissions } from "./types"
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -20,9 +20,9 @@ interface UserContextType {
   logout: () => Promise<void>
   isAuthenticated: boolean
   loading: boolean
-  isAdmin: boolean
-  updateUserFamilyAccess: (userId: string, hasAccess: boolean) => Promise<void>
   fetchAllUsers: () => Promise<void>
+  updateUserPermissions: (userId: string, permissions: UserPermissions) => Promise<void>
+  updateUserRole: (userId: string, role: "admin" | "user") => Promise<void>
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
@@ -58,7 +58,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
             displayName: firebaseUser.displayName || userData?.displayName || "",
             createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
             role: userData?.role || "user",
-            hasFamilyAccess: userData?.hasFamilyAccess ?? true,
+            permissions: userData?.permissions || {
+              canAccessPersonal: true,
+              canAccessFamily: false,
+              canAccessInstallments: true,
+            },
           }
           console.log("[v0] User authenticated:", user.displayName, "Role:", user.role)
           setCurrentUser(user)
@@ -90,8 +94,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       console.error("[v0] Login error:", error)
       let errorMessage = "Erro ao fazer login"
 
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "Usuário não encontrado. Verifique o email."
+      if (error.code === "auth/invalid-credential") {
+        errorMessage = "Email ou senha incorretos. Verifique suas credenciais e tente novamente."
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "Usuário não encontrado. Verifique o email ou crie uma conta."
       } else if (error.code === "auth/wrong-password") {
         errorMessage = "Senha incorreta. Tente novamente."
       } else if (error.code === "auth/invalid-email") {
@@ -123,13 +129,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // Update profile with display name
       await updateProfile(user, { displayName })
 
-      // Save additional user data to Firestore
       await setDoc(doc(db, "users", user.uid), {
         displayName,
         email,
-        role: "user",
-        hasFamilyAccess: false,
         createdAt: new Date().toISOString(),
+        role: "user",
+        permissions: {
+          canAccessPersonal: true,
+          canAccessFamily: false,
+          canAccessInstallments: true,
+        },
       })
     } catch (error: any) {
       console.error("Registration error:", error)
@@ -166,55 +175,74 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }
 
   const fetchAllUsers = async () => {
-    if (!currentUser || currentUser.role !== "admin") {
-      console.log("[v0] Only admins can fetch all users")
-      return
-    }
+    if (typeof window === "undefined") return
 
     try {
       const db = getFirebaseFirestore()
-      const usersCollection = collection(db, "users")
-      const usersSnapshot = await getDocs(usersCollection)
+      const usersSnapshot = await getDocs(collection(db, "users"))
+      const usersList: User[] = []
 
-      const usersList: User[] = usersSnapshot.docs.map((doc) => {
+      usersSnapshot.forEach((doc) => {
         const data = doc.data()
-        return {
+        usersList.push({
           id: doc.id,
           username: data.email?.split("@")[0] || "",
           displayName: data.displayName || "",
-          createdAt: data.createdAt || new Date().toISOString(),
+          createdAt: data.createdAt || "",
           role: data.role || "user",
-          hasFamilyAccess: data.hasFamilyAccess ?? false,
-        }
+          permissions: data.permissions || {
+            canAccessPersonal: true,
+            canAccessFamily: false,
+            canAccessInstallments: true,
+          },
+        })
       })
 
       setUsers(usersList)
-      console.log("[v0] Fetched users:", usersList.length)
     } catch (error) {
-      console.error("[v0] Error fetching users:", error)
+      console.error("Error fetching users:", error)
     }
   }
 
-  const updateUserFamilyAccess = async (userId: string, hasAccess: boolean) => {
-    if (!currentUser || currentUser.role !== "admin") {
-      throw new Error("Apenas administradores podem alterar permissões")
-    }
+  const updateUserPermissions = async (userId: string, permissions: UserPermissions) => {
+    if (typeof window === "undefined") return
 
     try {
       const db = getFirebaseFirestore()
-      await updateDoc(doc(db, "users", userId), {
-        hasFamilyAccess: hasAccess,
-      })
+      const userRef = doc(db, "users", userId)
+      await updateDoc(userRef, { permissions })
 
-      // Update local users list
-      setUsers((prevUsers) =>
-        prevUsers.map((user) => (user.id === userId ? { ...user, hasFamilyAccess: hasAccess } : user)),
-      )
+      // Update local state
+      setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, permissions } : user)))
 
-      console.log("[v0] Updated family access for user:", userId, "Access:", hasAccess)
+      // Update current user if it's the same user
+      if (currentUser?.id === userId) {
+        setCurrentUser((prev) => (prev ? { ...prev, permissions } : null))
+      }
     } catch (error) {
-      console.error("[v0] Error updating family access:", error)
-      throw new Error("Erro ao atualizar permissões")
+      console.error("Error updating user permissions:", error)
+      throw error
+    }
+  }
+
+  const updateUserRole = async (userId: string, role: "admin" | "user") => {
+    if (typeof window === "undefined") return
+
+    try {
+      const db = getFirebaseFirestore()
+      const userRef = doc(db, "users", userId)
+      await updateDoc(userRef, { role })
+
+      // Update local state
+      setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, role } : user)))
+
+      // Update current user if it's the same user
+      if (currentUser?.id === userId) {
+        setCurrentUser((prev) => (prev ? { ...prev, role } : null))
+      }
+    } catch (error) {
+      console.error("Error updating user role:", error)
+      throw error
     }
   }
 
@@ -228,9 +256,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         logout,
         isAuthenticated: currentUser !== null,
         loading,
-        isAdmin: currentUser?.role === "admin",
-        updateUserFamilyAccess,
         fetchAllUsers,
+        updateUserPermissions,
+        updateUserRole,
       }}
     >
       {children}

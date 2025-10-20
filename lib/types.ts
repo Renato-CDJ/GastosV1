@@ -13,13 +13,21 @@ export type ExpenseType = "personal" | "family"
 
 export type PaymentMethod = "dinheiro" | "debito" | "credito" | "pix" | "outros"
 
+export type UserRole = "admin" | "user"
+
+export interface UserPermissions {
+  canAccessPersonal: boolean
+  canAccessFamily: boolean
+  canAccessInstallments: boolean
+}
+
 export interface User {
   id: string
   username: string
   displayName: string
   createdAt: string
-  role?: "admin" | "user"
-  hasFamilyAccess?: boolean
+  role: UserRole
+  permissions: UserPermissions
 }
 
 export interface Expense {
@@ -70,7 +78,7 @@ export interface Installment {
   currentInstallment: number
   installmentAmount: number
   category: ExpenseCategory
-  type: "personal" | "family"
+  type: ExpenseType
   paymentMethod: PaymentMethod
   startDate: string
   dueDay: number
