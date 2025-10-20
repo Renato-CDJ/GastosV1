@@ -21,7 +21,6 @@ import { useExpenses } from "@/lib/expense-context"
 import type { ExpenseCategory, ExpenseType, PaymentMethod } from "@/lib/types"
 import { categoryLabels, paymentMethodLabels } from "@/lib/expense-utils"
 import { useToast } from "@/hooks/use-toast"
-import { useUser } from "@/lib/user-context"
 
 const PlusIcon = () => (
   <svg
@@ -46,7 +45,6 @@ interface AddExpenseDialogProps {
 
 export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogProps) {
   const { addExpense } = useExpenses()
-  const { currentUser } = useUser()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -59,21 +57,11 @@ export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogP
     notes: "",
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!currentUser) {
-      console.error("[v0] Cannot submit: currentUser is null")
-      toast({
-        title: "Erro de autenticação",
-        description: "Você precisa estar logado para adicionar gastos.",
-        variant: "destructive",
-      })
-      return
-    }
-
     const amount = Number.parseFloat(formData.amount)
-    if (amount <= 0 || isNaN(amount)) {
+    if (amount <= 0) {
       toast({
         title: "Valor inválido",
         description: "O valor deve ser maior que zero.",
@@ -82,41 +70,35 @@ export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogP
       return
     }
 
-    console.log("[v0] Submitting expense form:", formData)
+    addExpense({
+      description: formData.description,
+      amount,
+      category: formData.category,
+      type: formData.type,
+      paymentMethod: formData.paymentMethod,
+      date: formData.date,
+      notes: formData.notes || undefined,
+    })
 
-    try {
-      await addExpense({
-        description: formData.description,
-        amount,
-        category: formData.category,
-        type: formData.type,
-        paymentMethod: formData.paymentMethod,
-        date: formData.date,
-        notes: formData.notes || undefined,
-      })
+    toast({
+      title: "Gasto adicionado!",
+      description: `${formData.description} - ${new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }).format(amount)}`,
+    })
 
-      toast({
-        title: "Gasto adicionado!",
-        description: `${formData.description} - ${new Intl.NumberFormat("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        }).format(amount)}`,
-      })
+    setFormData({
+      description: "",
+      amount: "",
+      category: "outros",
+      type: defaultType,
+      paymentMethod: "dinheiro",
+      date: new Date().toISOString().split("T")[0],
+      notes: "",
+    })
 
-      setFormData({
-        description: "",
-        amount: "",
-        category: "outros",
-        type: defaultType,
-        paymentMethod: "dinheiro",
-        date: new Date().toISOString().split("T")[0],
-        notes: "",
-      })
-
-      setOpen(false)
-    } catch (error) {
-      console.error("[v0] Error in handleSubmit:", error)
-    }
+    setOpen(false)
   }
 
   return (

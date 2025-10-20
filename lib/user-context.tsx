@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import type { User, UserPermissions } from "./types"
+import type { User } from "./types"
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -10,7 +10,7 @@ import {
   updateProfile,
 } from "firebase/auth"
 import { getFirebaseAuth, getFirebaseFirestore } from "./firebase"
-import { doc, setDoc, getDoc, collection, getDocs, updateDoc } from "firebase/firestore"
+import { doc, setDoc, getDoc } from "firebase/firestore"
 
 interface UserContextType {
   currentUser: User | null
@@ -20,9 +20,6 @@ interface UserContextType {
   logout: () => Promise<void>
   isAuthenticated: boolean
   loading: boolean
-  fetchAllUsers: () => Promise<void>
-  updateUserPermissions: (userId: string, permissions: UserPermissions) => Promise<void>
-  updateUserRole: (userId: string, role: "admin" | "user") => Promise<void>
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
@@ -57,14 +54,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
             username: firebaseUser.email?.split("@")[0] || "",
             displayName: firebaseUser.displayName || userData?.displayName || "",
             createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
-            role: userData?.role || "user",
-            permissions: userData?.permissions || {
-              canAccessPersonal: true,
-              canAccessFamily: false,
-              canAccessInstallments: true,
-            },
           }
-          console.log("[v0] User authenticated:", user.displayName, "Role:", user.role)
+          console.log("[v0] User authenticated:", user.displayName)
           setCurrentUser(user)
         } else {
           console.log("[v0] No user authenticated")
@@ -94,10 +85,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       console.error("[v0] Login error:", error)
       let errorMessage = "Erro ao fazer login"
 
-      if (error.code === "auth/invalid-credential") {
-        errorMessage = "Email ou senha incorretos. Verifique suas credenciais e tente novamente."
-      } else if (error.code === "auth/user-not-found") {
-        errorMessage = "Usuário não encontrado. Verifique o email ou crie uma conta."
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "Usuário não encontrado. Verifique o email."
       } else if (error.code === "auth/wrong-password") {
         errorMessage = "Senha incorreta. Tente novamente."
       } else if (error.code === "auth/invalid-email") {
@@ -129,16 +118,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // Update profile with display name
       await updateProfile(user, { displayName })
 
+      // Save additional user data to Firestore
       await setDoc(doc(db, "users", user.uid), {
         displayName,
         email,
         createdAt: new Date().toISOString(),
-        role: "user",
-        permissions: {
-          canAccessPersonal: true,
-          canAccessFamily: false,
-          canAccessInstallments: true,
-        },
       })
     } catch (error: any) {
       console.error("Registration error:", error)
@@ -174,78 +158,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const fetchAllUsers = async () => {
-    if (typeof window === "undefined") return
-
-    try {
-      const db = getFirebaseFirestore()
-      const usersSnapshot = await getDocs(collection(db, "users"))
-      const usersList: User[] = []
-
-      usersSnapshot.forEach((doc) => {
-        const data = doc.data()
-        usersList.push({
-          id: doc.id,
-          username: data.email?.split("@")[0] || "",
-          displayName: data.displayName || "",
-          createdAt: data.createdAt || "",
-          role: data.role || "user",
-          permissions: data.permissions || {
-            canAccessPersonal: true,
-            canAccessFamily: false,
-            canAccessInstallments: true,
-          },
-        })
-      })
-
-      setUsers(usersList)
-    } catch (error) {
-      console.error("Error fetching users:", error)
-    }
-  }
-
-  const updateUserPermissions = async (userId: string, permissions: UserPermissions) => {
-    if (typeof window === "undefined") return
-
-    try {
-      const db = getFirebaseFirestore()
-      const userRef = doc(db, "users", userId)
-      await updateDoc(userRef, { permissions })
-
-      // Update local state
-      setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, permissions } : user)))
-
-      // Update current user if it's the same user
-      if (currentUser?.id === userId) {
-        setCurrentUser((prev) => (prev ? { ...prev, permissions } : null))
-      }
-    } catch (error) {
-      console.error("Error updating user permissions:", error)
-      throw error
-    }
-  }
-
-  const updateUserRole = async (userId: string, role: "admin" | "user") => {
-    if (typeof window === "undefined") return
-
-    try {
-      const db = getFirebaseFirestore()
-      const userRef = doc(db, "users", userId)
-      await updateDoc(userRef, { role })
-
-      // Update local state
-      setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, role } : user)))
-
-      // Update current user if it's the same user
-      if (currentUser?.id === userId) {
-        setCurrentUser((prev) => (prev ? { ...prev, role } : null))
-      }
-    } catch (error) {
-      console.error("Error updating user role:", error)
-      throw error
-    }
-  }
-
   return (
     <UserContext.Provider
       value={{
@@ -256,9 +168,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         logout,
         isAuthenticated: currentUser !== null,
         loading,
-        fetchAllUsers,
-        updateUserPermissions,
-        updateUserRole,
       }}
     >
       {children}
