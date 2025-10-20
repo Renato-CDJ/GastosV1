@@ -7,13 +7,11 @@ import { InstallmentsList } from "@/components/installments-list"
 import { CategoryManagerDialog } from "@/components/category-manager-dialog"
 import { InstallmentsPieChart } from "@/components/installments-pie-chart"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useExpenses } from "@/lib/expense-context"
 import { formatCurrency } from "@/lib/expense-utils"
 import { AuthGuard } from "@/components/auth-guard"
-import type { ExpenseType } from "@/lib/types"
 
 const BackIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -23,11 +21,10 @@ const BackIcon = () => (
 )
 
 export default function InstallmentsPage() {
-  const [activeTab, setActiveTab] = useState<ExpenseType>("personal")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paid">("all")
   const { getInstallmentsByType } = useExpenses()
 
-  const installments = getInstallmentsByType(activeTab)
+  const installments = getInstallmentsByType("personal")
 
   const totalInstallments = installments.length
   const paidInstallments = installments.filter((inst) => inst.paidInstallments.length === inst.installmentCount).length
@@ -122,40 +119,10 @@ export default function InstallmentsPage() {
             </Card>
           </div>
 
-          <Tabs
-            defaultValue="personal"
-            className="space-y-6"
-            onValueChange={(value) => setActiveTab(value as ExpenseType)}
-          >
-            <TabsList className="bg-white/80 backdrop-blur-sm border-2 border-green-200 p-1">
-              <TabsTrigger
-                value="personal"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white"
-              >
-                Pessoal
-              </TabsTrigger>
-              <TabsTrigger
-                value="family"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
-              >
-                Familiar
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="personal">
-              <div className="space-y-6">
-                <InstallmentsList type="personal" statusFilter={statusFilter} />
-                <InstallmentsPieChart type="personal" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="family">
-              <div className="space-y-6">
-                <InstallmentsList type="family" statusFilter={statusFilter} />
-                <InstallmentsPieChart type="family" />
-              </div>
-            </TabsContent>
-          </Tabs>
+          <div className="space-y-6">
+            <InstallmentsList type="personal" statusFilter={statusFilter} />
+            <InstallmentsPieChart type="personal" />
+          </div>
         </div>
       </div>
     </AuthGuard>

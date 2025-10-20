@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from "react"
-import type { Expense, ExpenseType, CategoryBudget, Installment, Salary, FamilyMember } from "./types"
+import type { Expense, ExpenseType, CategoryBudget, Installment, Salary } from "./types"
 import { useUser } from "./user-context"
 import {
   collection,
@@ -24,7 +24,6 @@ interface ExpenseContextType {
   installments: Installment[]
   categories: string[]
   salary: Salary[]
-  familyMembers: FamilyMember[]
   addExpense: (expense: Omit<Expense, "id" | "createdAt" | "userId">) => void
   updateExpense: (id: string, expense: Partial<Expense>) => void
   deleteExpense: (id: string) => void
@@ -39,9 +38,6 @@ interface ExpenseContextType {
   getInstallmentsByType: (type: ExpenseType) => Installment[]
   addCategory: (category: string) => void
   deleteCategory: (category: string) => void
-  addFamilyMember: (member: Omit<FamilyMember, "id" | "createdAt">) => void
-  updateFamilyMember: (id: string, member: Partial<FamilyMember>) => void
-  deleteFamilyMember: (id: string) => void
   hasPermissionError: boolean
 }
 
@@ -53,7 +49,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const [budgets, setBudgets] = useState<CategoryBudget[]>([])
   const [installments, setInstallments] = useState<Installment[]>([])
   const [salary, setSalaryState] = useState<Salary[]>([])
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([])
   const [categories, setCategories] = useState<string[]>([
     "alimentacao",
     "transporte",
@@ -74,7 +69,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       setBudgets([])
       setInstallments([])
       setSalaryState([])
-      setFamilyMembers([])
       setHasPermissionError(false)
       setPermissionErrorShown(false)
       return
@@ -102,32 +96,28 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const expensesQuery = query(collection(db, "expenses"))
+    const expensesQuery = query(collection(db, "expenses"), where("userId", "==", currentUser.id))
     const unsubscribeExpenses = onSnapshot(
       expensesQuery,
       (snapshot) => {
         const expensesData: Expense[] = []
         snapshot.forEach((doc) => {
           const data = doc.data()
-          if (data.type === "family" || data.userId === currentUser.id) {
-            expensesData.push({ id: doc.id, ...data } as Expense)
-          }
+          expensesData.push({ id: doc.id, ...data } as Expense)
         })
         setExpenses(expensesData)
       },
       (error) => handlePermissionError(error, "expenses"),
     )
 
-    const budgetsQuery = query(collection(db, "budgets"))
+    const budgetsQuery = query(collection(db, "budgets"), where("userId", "==", currentUser.id))
     const unsubscribeBudgets = onSnapshot(
       budgetsQuery,
       (snapshot) => {
         const budgetsData: CategoryBudget[] = []
         snapshot.forEach((doc) => {
           const data = doc.data()
-          if (data.type === "family" || data.userId === currentUser.id) {
-            budgetsData.push({ ...data } as CategoryBudget)
-          }
+          budgetsData.push({ ...data } as CategoryBudget)
         })
         setBudgets(budgetsData)
       },
@@ -147,33 +137,18 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       (error) => handlePermissionError(error, "installments"),
     )
 
-    const salaryQuery = query(collection(db, "salary"))
+    const salaryQuery = query(collection(db, "salary"), where("userId", "==", currentUser.id))
     const unsubscribeSalary = onSnapshot(
       salaryQuery,
       (snapshot) => {
         const salaryData: Salary[] = []
         snapshot.forEach((doc) => {
           const data = doc.data()
-          if (data.type === "family" || data.userId === currentUser.id) {
-            salaryData.push({ ...data } as Salary)
-          }
+          salaryData.push({ ...data } as Salary)
         })
         setSalaryState(salaryData)
       },
       (error) => handlePermissionError(error, "salary"),
-    )
-
-    const familyMembersQuery = query(collection(db, "familyMembers"))
-    const unsubscribeFamilyMembers = onSnapshot(
-      familyMembersQuery,
-      (snapshot) => {
-        const familyMembersData: FamilyMember[] = []
-        snapshot.forEach((doc) => {
-          familyMembersData.push({ id: doc.id, ...doc.data() } as FamilyMember)
-        })
-        setFamilyMembers(familyMembersData)
-      },
-      (error) => handlePermissionError(error, "familyMembers"),
     )
 
     const loadCategories = async () => {
@@ -196,7 +171,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       unsubscribeBudgets()
       unsubscribeInstallments()
       unsubscribeSalary()
-      unsubscribeFamilyMembers()
     }
   }, [currentUser])
 
@@ -206,20 +180,12 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
 
       try {
         const db = getFirebaseFirestore()
-        const newExpense = {
-          ...expense,
-          createdAt: new Date().toISOString(),
-          userId: expense.type === "personal" ? currentUser.id : undefined,
-        }
-
-        const cleanExpense = Object.entries(newExpense).reduce(
-          (acc, [key, value]) => {
-            if (value !== undefined) {
-              acc[key] = value
-            }
-            return acc
-          },
-          {} as Record<string, any>,
+        const cleanExpense = Object.fromEntries(
+          Object.entries({
+            ...expense,
+            createdAt: new Date().toISOString(),
+            userId: currentUser.id,
+          }).filter(([_, value]) => value !== undefined),
         )
 
         await addDoc(collection(db, "expenses"), cleanExpense)
@@ -284,10 +250,10 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const db = getFirebaseFirestore()
         const budgetWithUser: CategoryBudget = {
           ...budget,
-          userId: budget.type === "personal" ? currentUser.id : undefined,
+          userId: currentUser.id,
         }
 
-        const budgetId = `${budgetWithUser.category}_${budgetWithUser.type}_${budgetWithUser.userId || "family"}`
+        const budgetId = `${budgetWithUser.category}_${budgetWithUser.type}_${budgetWithUser.userId}`
         const budgetRef = doc(db, "budgets", budgetId)
         await setDoc(budgetRef, budgetWithUser)
         toast({
@@ -315,10 +281,10 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const db = getFirebaseFirestore()
         const salaryWithUser: Salary = {
           ...salaryData,
-          userId: salaryData.type === "personal" ? currentUser.id : undefined,
+          userId: currentUser.id,
         }
 
-        const salaryId = `${salaryWithUser.type}_${salaryWithUser.userId || "family"}`
+        const salaryId = `${salaryWithUser.type}_${salaryWithUser.userId}`
         const salaryRef = doc(db, "salary", salaryId)
         await setDoc(salaryRef, salaryWithUser)
         toast({
@@ -344,14 +310,16 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
 
       try {
         const db = getFirebaseFirestore()
-        const newInstallment = {
-          ...installment,
-          createdAt: new Date().toISOString(),
-          paidInstallments: [],
-          userId: currentUser.id,
-        }
+        const cleanInstallment = Object.fromEntries(
+          Object.entries({
+            ...installment,
+            createdAt: new Date().toISOString(),
+            paidInstallments: [],
+            userId: currentUser.id,
+          }).filter(([_, value]) => value !== undefined),
+        )
 
-        await addDoc(collection(db, "installments"), newInstallment)
+        await addDoc(collection(db, "installments"), cleanInstallment)
         toast({
           title: "Parcelamento adicionado",
           description: "O parcelamento foi registrado com sucesso.",
@@ -443,15 +411,9 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
 
   const getExpensesByType = useCallback(
     (type: ExpenseType) => {
-      return expenses.filter((expense) => {
-        if (expense.type !== type) return false
-        if (type === "personal") {
-          return expense.userId === currentUser?.id
-        }
-        return true
-      })
+      return expenses.filter((expense) => expense.type === type)
     },
-    [expenses, currentUser?.id],
+    [expenses],
   )
 
   const getExpensesByDateRange = useCallback(
@@ -463,21 +425,17 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const matchesDate = expenseDate >= start && expenseDate <= end
         const matchesType = type ? expense.type === type : true
 
-        if (type === "personal" && expense.userId !== currentUser?.id) {
-          return false
-        }
-
         return matchesDate && matchesType
       })
     },
-    [expenses, currentUser?.id],
+    [expenses],
   )
 
   const getInstallmentsByType = useCallback(
     (type: ExpenseType) => {
-      return installments.filter((installment) => installment.type === type && installment.userId === currentUser?.id)
+      return installments.filter((installment) => installment.type === type)
     },
-    [installments, currentUser?.id],
+    [installments],
   )
 
   const addCategory = useCallback(
@@ -539,70 +497,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     [categories, currentUser],
   )
 
-  const addFamilyMember = useCallback(async (member: Omit<FamilyMember, "id" | "createdAt">) => {
-    try {
-      const db = getFirebaseFirestore()
-      const newMember = {
-        ...member,
-        createdAt: new Date().toISOString(),
-      }
-
-      await addDoc(collection(db, "familyMembers"), newMember)
-      toast({
-        title: "Membro adicionado",
-        description: `${member.name} foi adicionado à família.`,
-      })
-    } catch (error: any) {
-      console.error("Error adding family member:", error)
-      toast({
-        title: "Erro ao adicionar membro",
-        description: error.message || "Tente novamente mais tarde.",
-        variant: "destructive",
-      })
-      throw error
-    }
-  }, [])
-
-  const updateFamilyMember = useCallback(async (id: string, updatedData: Partial<FamilyMember>) => {
-    try {
-      const db = getFirebaseFirestore()
-      const memberRef = doc(db, "familyMembers", id)
-      await updateDoc(memberRef, updatedData)
-      toast({
-        title: "Membro atualizado",
-        description: "As alterações foram salvas com sucesso.",
-      })
-    } catch (error: any) {
-      console.error("Error updating family member:", error)
-      toast({
-        title: "Erro ao atualizar membro",
-        description: error.message || "Tente novamente mais tarde.",
-        variant: "destructive",
-      })
-      throw error
-    }
-  }, [])
-
-  const deleteFamilyMember = useCallback(async (id: string) => {
-    try {
-      const db = getFirebaseFirestore()
-      const memberRef = doc(db, "familyMembers", id)
-      await deleteDoc(memberRef)
-      toast({
-        title: "Membro removido",
-        description: "O membro foi removido da família.",
-      })
-    } catch (error: any) {
-      console.error("Error deleting family member:", error)
-      toast({
-        title: "Erro ao remover membro",
-        description: error.message || "Tente novamente mais tarde.",
-        variant: "destructive",
-      })
-      throw error
-    }
-  }, [])
-
   return (
     <ExpenseContext.Provider
       value={{
@@ -611,7 +505,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         installments,
         categories,
         salary,
-        familyMembers,
         addExpense,
         updateExpense,
         deleteExpense,
@@ -626,9 +519,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         getInstallmentsByType,
         addCategory,
         deleteCategory,
-        addFamilyMember,
-        updateFamilyMember,
-        deleteFamilyMember,
         hasPermissionError,
       }}
     >

@@ -9,7 +9,7 @@ export type ExpenseCategory =
   | "servicos"
   | "outros"
 
-export type ExpenseType = "personal" | "family"
+export type ExpenseType = "personal"
 
 export type PaymentMethod = "dinheiro" | "debito" | "credito" | "pix" | "outros"
 
@@ -30,27 +30,20 @@ export interface Expense {
   date: string
   createdAt: string
   notes?: string
-  userId?: string
+  userId: string
 }
 
 export interface CategoryBudget {
   category: ExpenseCategory
   limit: number
   type: ExpenseType
-  userId?: string
+  userId: string
 }
 
 export interface Salary {
   amount: number
   type: ExpenseType
-  userId?: string
-}
-
-export interface FamilyMember {
-  id: string
-  name: string
-  salary: number
-  createdAt: string
+  userId: string
 }
 
 export interface ExpenseStats {
@@ -75,5 +68,5 @@ export interface Installment {
   paidInstallments: number[]
   createdAt: string
   notes?: string
-  userId?: string
+  userId: string
 }

@@ -24,38 +24,28 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
     
-    // Expenses collection
     match /expenses/{expenseId} {
-      // Allow authenticated users to list/read all expenses
-      // Client-side filtering will handle personal vs family
-      allow read, list: if isAuthenticated();
+      // Users can only read their own expenses
+      allow read, list: if isAuthenticated() && resource.data.userId == request.auth.uid;
       
-      // Allow create if user is authenticated and sets correct userId
+      // Users can only create expenses with their own userId
       allow create: if isAuthenticated() && 
-                       ((request.resource.data.type == "personal" && 
-                         request.resource.data.userId == request.auth.uid) ||
-                        (request.resource.data.type == "family" && 
-                         (!("userId" in request.resource.data) || 
-                          request.resource.data.userId == null)));
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.type == "personal";
       
-      // Allow update/delete only for own expenses or family expenses
+      // Users can only update/delete their own expenses
       allow update, delete: if isAuthenticated() && 
-                               (resource.data.type == "family" || 
-                                resource.data.userId == request.auth.uid);
+                               resource.data.userId == request.auth.uid;
     }
     
-    // Budgets collection
     match /budgets/{budgetId} {
-      // Allow authenticated users to list/read all budgets
-      allow read, list: if isAuthenticated();
+      // Users can only read their own budgets
+      allow read, list: if isAuthenticated() && resource.data.userId == request.auth.uid;
       
-      // Allow write if user is authenticated and sets correct userId
+      // Users can only create budgets with their own userId
       allow write: if isAuthenticated() && 
-                      ((request.resource.data.type == "family" && 
-                        (!("userId" in request.resource.data) || 
-                         request.resource.data.userId == null)) ||
-                       (request.resource.data.type == "personal" && 
-                        request.resource.data.userId == request.auth.uid));
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.type == "personal";
     }
     
     // Installments collection - only owner can access
@@ -65,23 +55,15 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
     
-    // Salary collection
     match /salary/{salaryId} {
-      // Allow authenticated users to list/read all salary records
-      allow read, list: if isAuthenticated();
+      // Users can only read their own salary records
+      allow read, list: if isAuthenticated() && resource.data.userId == request.auth.uid;
       
-      // Allow write if user is authenticated and sets correct userId
+      // Users can only create salary with their own userId
       allow write: if isAuthenticated() && 
-                      ((request.resource.data.type == "family" && 
-                        (!("userId" in request.resource.data) || 
-                         request.resource.data.userId == null)) ||
-                       (request.resource.data.type == "personal" && 
-                        request.resource.data.userId == request.auth.uid));
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.type == "personal";
     }
     
-    // Family members collection - all authenticated users can read/write
-    match /familyMembers/{memberId} {
-      allow read, write: if isAuthenticated();
-    }
   }
 }

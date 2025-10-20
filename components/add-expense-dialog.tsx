@@ -119,9 +119,7 @@ export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogP
               <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Adicionar Novo Gasto
               </DialogTitle>
-              <DialogDescription className="text-slate-600">
-                Registre um novo gasto pessoal ou familiar
-              </DialogDescription>
+              <DialogDescription className="text-slate-600">Registre um novo gasto pessoal</DialogDescription>
             </div>
             <CategoryManagerDialog />
           </div>
@@ -198,60 +196,33 @@ export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogP
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="type" className="text-slate-700 font-semibold text-sm">
-                Tipo
-              </Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value) => setFormData({ ...formData, type: value as ExpenseType })}
+          <div className="space-y-2">
+            <Label htmlFor="payment" className="text-slate-700 font-semibold text-sm">
+              Pagamento
+            </Label>
+            <Select
+              value={formData.paymentMethod}
+              onValueChange={(value) =>
+                setFormData({
+                  ...formData,
+                  paymentMethod: value as PaymentMethod,
+                })
+              }
+            >
+              <SelectTrigger
+                id="payment"
+                className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
               >
-                <SelectTrigger
-                  id="type"
-                  className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="personal" className="focus:bg-blue-50">
-                    Pessoal
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                {Object.entries(paymentMethodLabels).map(([key, label]) => (
+                  <SelectItem key={key} value={key} className="focus:bg-blue-50">
+                    {label}
                   </SelectItem>
-                  <SelectItem value="family" className="focus:bg-purple-50">
-                    Familiar
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="payment" className="text-slate-700 font-semibold text-sm">
-                Pagamento
-              </Label>
-              <Select
-                value={formData.paymentMethod}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    paymentMethod: value as PaymentMethod,
-                  })
-                }
-              >
-                <SelectTrigger
-                  id="payment"
-                  className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {Object.entries(paymentMethodLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key} className="focus:bg-blue-50">
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

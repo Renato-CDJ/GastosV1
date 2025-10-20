@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useExpenses } from "@/lib/expense-context"
 import { categoryLabels } from "@/lib/expense-utils"
-import type { ExpenseCategory, ExpenseType, PaymentMethod } from "@/lib/types"
+import type { ExpenseCategory, PaymentMethod } from "@/lib/types"
 
 const PlusIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -28,7 +28,6 @@ export function AddInstallmentDialog() {
     totalAmount: "",
     installmentCount: "",
     category: "outros" as ExpenseCategory,
-    type: "personal" as ExpenseType,
     paymentMethod: "credito" as PaymentMethod,
     startDate: new Date().toISOString().split("T")[0],
     dueDay: "10",
@@ -52,7 +51,6 @@ export function AddInstallmentDialog() {
       currentInstallment: 1,
       installmentAmount: totalAmount / installmentCount,
       category: formData.category,
-      type: formData.type,
       paymentMethod: formData.paymentMethod,
       startDate: formData.startDate,
       dueDay: Number.parseInt(formData.dueDay),
@@ -64,7 +62,6 @@ export function AddInstallmentDialog() {
       totalAmount: "",
       installmentCount: "",
       category: "outros",
-      type: "personal",
       paymentMethod: "credito",
       startDate: new Date().toISOString().split("T")[0],
       dueDay: "10",
@@ -186,28 +183,6 @@ export function AddInstallmentDialog() {
                     {label}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="type" className="text-slate-700 font-semibold">
-              Tipo
-            </Label>
-            <Select
-              value={formData.type}
-              onValueChange={(value) => setFormData({ ...formData, type: value as ExpenseType })}
-            >
-              <SelectTrigger className="border-green-200 focus:border-green-400 focus:ring-green-400 bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-green-200">
-                <SelectItem value="personal" className="hover:bg-green-50">
-                  Pessoal
-                </SelectItem>
-                <SelectItem value="family" className="hover:bg-green-50">
-                  Familiar
-                </SelectItem>
               </SelectContent>
             </Select>
           </div>
