@@ -10,6 +10,7 @@ import { AuthGuard } from "@/components/auth-guard"
 import { useUser } from "@/lib/user-context"
 import { useRouter } from "next/navigation"
 import { FirebaseConfigAlert } from "@/components/firebase-config-alert"
+import { useEffect } from "react"
 
 const UserIcon = () => (
   <svg
@@ -60,14 +61,36 @@ const CreditCardIcon = () => (
 )
 
 export default function Home() {
-  const { getExpensesByDateRange, installments } = useExpenses()
+  const { getExpensesByDateRange, installments, expenses } = useExpenses()
   const { currentUser, logout } = useUser()
   const router = useRouter()
   const currentMonth = getCurrentMonthRange()
 
+  useEffect(() => {
+    console.log("[v0] Home page - Total expenses in context:", expenses.length)
+    console.log("[v0] Home page - Current month range:", currentMonth)
+    console.log("[v0] Home page - All expenses:", expenses)
+  }, [expenses, currentMonth])
+
   const personalExpenses = getExpensesByDateRange(currentMonth.start, currentMonth.end, "personal")
 
+  useEffect(() => {
+    console.log("[v0] Home page - Personal expenses for current month:", personalExpenses.length)
+    console.log("[v0] Home page - Personal expenses data:", personalExpenses)
+  }, [personalExpenses])
+
   const personalStats = calculateStats(personalExpenses)
+
+  useEffect(() => {
+    console.log("[v0] Home page - Personal stats:", personalStats)
+  }, [personalStats])
+
+  const activeInstallmentsCount = installments?.length || 0
+  const totalOutstanding =
+    installments?.reduce(
+      (sum, inst) => sum + inst.installmentAmount * (inst.installmentCount - (inst.paidInstallments?.length || 0)),
+      0,
+    ) || 0
 
   const handleLogout = () => {
     logout()
@@ -170,24 +193,18 @@ export default function Home() {
                     <div className="space-y-3">
                       <div className="flex items-baseline justify-between">
                         <span className="text-sm text-gray-600">Ativos</span>
-                        <span className="text-2xl font-bold font-mono text-gray-900">{installments.length}</span>
+                        <span className="text-2xl font-bold font-mono text-gray-900">{activeInstallmentsCount}</span>
                       </div>
                       <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-yellow-600 rounded-full"
-                          style={{ width: `${Math.min((installments.length / 10) * 100, 100)}%` }}
+                          style={{ width: `${Math.min((activeInstallmentsCount / 10) * 100, 100)}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Em aberto</span>
                         <span className="font-semibold font-mono text-gray-900">
-                          {formatCurrency(
-                            installments.reduce(
-                              (sum, inst) =>
-                                sum + inst.installmentAmount * (inst.installmentCount - inst.paidInstallments.length),
-                              0,
-                            ),
-                          )}
+                          {formatCurrency(totalOutstanding)}
                         </span>
                       </div>
                     </div>

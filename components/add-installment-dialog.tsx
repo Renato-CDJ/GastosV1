@@ -4,7 +4,14 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -29,7 +36,6 @@ export function AddInstallmentDialog() {
     installmentCount: "",
     category: "outros" as ExpenseCategory,
     paymentMethod: "credito" as PaymentMethod,
-    startDate: new Date().toISOString().split("T")[0],
     dueDay: "10",
     notes: "",
   })
@@ -52,7 +58,7 @@ export function AddInstallmentDialog() {
       installmentAmount: totalAmount / installmentCount,
       category: formData.category,
       paymentMethod: formData.paymentMethod,
-      startDate: formData.startDate,
+      startDate: new Date().toISOString().split("T")[0],
       dueDay: Number.parseInt(formData.dueDay),
       notes: formData.notes,
     })
@@ -63,7 +69,6 @@ export function AddInstallmentDialog() {
       installmentCount: "",
       category: "outros",
       paymentMethod: "credito",
-      startDate: new Date().toISOString().split("T")[0],
       dueDay: "10",
       notes: "",
     })
@@ -83,7 +88,9 @@ export function AddInstallmentDialog() {
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
             Adicionar Novo Parcelamento
           </DialogTitle>
-          <p className="text-sm text-slate-600">Registre uma compra parcelada</p>
+          <DialogDescription className="text-sm text-slate-600">
+            Registre uma compra parcelada com todas as informações necessárias
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           <div className="space-y-2">
@@ -134,36 +141,24 @@ export function AddInstallmentDialog() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDate" className="text-slate-700 font-semibold">
-                Data de Início
-              </Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                required
-                className="border-green-200 focus:border-green-400 focus:ring-green-400"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="dueDay" className="text-slate-700 font-semibold">
-                Dia de Vencimento
-              </Label>
-              <Input
-                id="dueDay"
-                type="number"
-                min="1"
-                max="31"
-                value={formData.dueDay}
-                onChange={(e) => setFormData({ ...formData, dueDay: e.target.value })}
-                required
-                className="border-green-200 focus:border-green-400 focus:ring-green-400"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="dueDay" className="text-slate-700 font-semibold">
+              Dia de Vencimento
+            </Label>
+            <Input
+              id="dueDay"
+              type="number"
+              min="1"
+              max="31"
+              placeholder="10"
+              value={formData.dueDay}
+              onChange={(e) => setFormData({ ...formData, dueDay: e.target.value })}
+              required
+              className="border-green-200 focus:border-green-400 focus:ring-green-400"
+            />
+            <p className="text-xs text-slate-500">
+              As parcelas começam no mês atual e vencem todo dia {formData.dueDay || "10"}
+            </p>
           </div>
 
           <div className="space-y-2">

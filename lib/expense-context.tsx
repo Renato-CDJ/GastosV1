@@ -74,6 +74,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    console.log("[v0] Setting up expense listeners for user:", currentUser.id)
+
     const db = getFirebaseFirestore()
 
     const handlePermissionError = (error: any, collectionName: string) => {
@@ -105,6 +107,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
           const data = doc.data()
           expensesData.push({ id: doc.id, ...data } as Expense)
         })
+        console.log("[v0] Expenses updated, count:", expensesData.length, "expenses:", expensesData)
         setExpenses(expensesData)
       },
       (error) => handlePermissionError(error, "expenses"),
@@ -132,6 +135,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         snapshot.forEach((doc) => {
           installmentsData.push({ id: doc.id, ...doc.data() } as Installment)
         })
+        console.log("[v0] Installments updated, count:", installmentsData.length, "installments:", installmentsData)
         setInstallments(installmentsData)
       },
       (error) => handlePermissionError(error, "installments"),
@@ -178,6 +182,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     async (expense: Omit<Expense, "id" | "createdAt" | "userId">) => {
       if (!currentUser) return
 
+      console.log("[v0] Adding expense:", expense)
       try {
         const db = getFirebaseFirestore()
         const cleanExpense = Object.fromEntries(
@@ -188,9 +193,11 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
           }).filter(([_, value]) => value !== undefined),
         )
 
-        await addDoc(collection(db, "expenses"), cleanExpense)
+        console.log("[v0] Clean expense data:", cleanExpense)
+        const docRef = await addDoc(collection(db, "expenses"), cleanExpense)
+        console.log("[v0] Expense added successfully with ID:", docRef.id)
       } catch (error: any) {
-        console.error("Error adding expense:", error)
+        console.error("[v0] Error adding expense:", error)
         toast({
           title: "Erro ao adicionar gasto",
           description: error.message || "Tente novamente mais tarde.",
@@ -308,24 +315,28 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     async (installment: Omit<Installment, "id" | "createdAt" | "paidInstallments" | "userId">) => {
       if (!currentUser) return
 
+      console.log("[v0] Adding installment:", installment)
       try {
         const db = getFirebaseFirestore()
         const cleanInstallment = Object.fromEntries(
           Object.entries({
             ...installment,
+            type: "personal", // Explicitly set type to personal
             createdAt: new Date().toISOString(),
             paidInstallments: [],
             userId: currentUser.id,
           }).filter(([_, value]) => value !== undefined),
         )
 
-        await addDoc(collection(db, "installments"), cleanInstallment)
+        console.log("[v0] Clean installment data:", cleanInstallment)
+        const docRef = await addDoc(collection(db, "installments"), cleanInstallment)
+        console.log("[v0] Installment added successfully with ID:", docRef.id)
         toast({
           title: "Parcelamento adicionado",
           description: "O parcelamento foi registrado com sucesso.",
         })
       } catch (error: any) {
-        console.error("Error adding installment:", error)
+        console.error("[v0] Error adding installment:", error)
         toast({
           title: "Erro ao adicionar parcelamento",
           description: error.message || "Tente novamente mais tarde.",
