@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -42,10 +42,16 @@ const PlusIcon = () => (
 
 interface UnifiedExpenseDialogProps {
   defaultType?: ExpenseType
+  editingInstallment?: any
+  onInstallmentEditComplete?: () => void
 }
 
-export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpenseDialogProps) {
-  const { addExpense, addInstallment } = useExpenses()
+export function UnifiedExpenseDialog({
+  defaultType = "personal",
+  editingInstallment,
+  onInstallmentEditComplete,
+}: UnifiedExpenseDialogProps) {
+  const { addExpense, addInstallment, updateInstallment } = useExpenses()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"simple" | "installment">("simple")
@@ -77,6 +83,24 @@ export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpens
     notes: "",
     isIndefinite: false,
   })
+
+  useEffect(() => {
+    if (editingInstallment) {
+      setInstallmentForm({
+        description: editingInstallment.description,
+        totalAmount: editingInstallment.totalAmount.toString(),
+        installmentCount: editingInstallment.installmentCount.toString(),
+        category: editingInstallment.category,
+        paymentMethod: editingInstallment.paymentMethod,
+        startDate: editingInstallment.startDate,
+        dueDay: editingInstallment.dueDay.toString(),
+        notes: editingInstallment.notes || "",
+        isIndefinite: editingInstallment.isIndefinite || false,
+      })
+      setActiveTab("installment")
+      setOpen(true)
+    }
+  }, [editingInstallment])
 
   const handleSimpleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,24 +164,48 @@ export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpens
       return
     }
 
-    addInstallment({
-      description: installmentForm.description,
-      totalAmount,
-      installmentCount,
-      currentInstallment: 1,
-      installmentAmount: totalAmount / installmentCount,
-      category: installmentForm.category,
-      paymentMethod: installmentForm.paymentMethod,
-      startDate: installmentForm.startDate,
-      dueDay: Number.parseInt(installmentForm.dueDay),
-      notes: installmentForm.notes,
-      isIndefinite: installmentForm.isIndefinite,
-    })
+    if (editingInstallment) {
+      updateInstallment(editingInstallment.id, {
+        description: installmentForm.description,
+        totalAmount,
+        installmentCount,
+        installmentAmount: totalAmount / installmentCount,
+        category: installmentForm.category,
+        paymentMethod: installmentForm.paymentMethod,
+        startDate: installmentForm.startDate,
+        dueDay: Number.parseInt(installmentForm.dueDay),
+        notes: installmentForm.notes,
+        isIndefinite: installmentForm.isIndefinite,
+      })
 
-    toast({
-      title: "Parcelamento adicionado!",
-      description: `${installmentForm.description} - ${installmentForm.isIndefinite ? "Indeterminado" : `${installmentCount}x`}`,
-    })
+      toast({
+        title: "Parcelamento atualizado!",
+        description: `${installmentForm.description} foi atualizado com sucesso.`,
+      })
+
+      if (onInstallmentEditComplete) {
+        onInstallmentEditComplete()
+      }
+    } else {
+      addInstallment({
+        description: installmentForm.description,
+        totalAmount,
+        installmentCount,
+        currentInstallment: 1,
+        installmentAmount: totalAmount / installmentCount,
+        category: installmentForm.category,
+        paymentMethod: installmentForm.paymentMethod,
+        startDate: installmentForm.startDate,
+        dueDay: Number.parseInt(installmentForm.dueDay),
+        notes: installmentForm.notes,
+        isIndefinite: installmentForm.isIndefinite,
+      })
+
+      toast({
+        title: "Parcelamento adicionado!",
+        description: `${installmentForm.description} - ${installmentForm.isIndefinite ? "Indeterminado" : `${installmentCount}x`}`,
+      })
+    }
 
     resetForms()
     setOpen(false)
@@ -191,7 +239,15 @@ export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpens
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen)
+        if (!isOpen && editingInstallment && onInstallmentEditComplete) {
+          onInstallmentEditComplete()
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button
           size="lg"
@@ -206,10 +262,12 @@ export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpens
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Adicionar Gasto
+                {editingInstallment ? "Editar Parcelamento" : "Adicionar Gasto"}
               </DialogTitle>
               <DialogDescription className="text-slate-600">
-                Registre gastos simples, recorrentes ou parcelados
+                {editingInstallment
+                  ? "Atualize os dados do parcelamento"
+                  : "Registre gastos simples, recorrentes ou parcelados"}
               </DialogDescription>
             </div>
             <CategoryManagerDialog />
@@ -631,7 +689,7 @@ export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpens
                   type="submit"
                   className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
                 >
-                  Adicionar
+                  {editingInstallment ? "Atualizar" : "Adicionar"}
                 </Button>
               </div>
             </form>
