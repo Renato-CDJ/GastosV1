@@ -76,7 +76,16 @@ const HistoryIcon = () => (
 )
 
 export default function DashboardPage() {
-  const { getExpensesByDateRange, installments, expenses, salary, markInstallmentAsPaid } = useExpenses()
+  const {
+    getExpensesByDateRange,
+    installments,
+    expenses,
+    salary,
+    markInstallmentAsPaid,
+    addSalary,
+    updateSalary,
+    deleteSalary,
+  } = useExpenses()
   const { currentUser, logout } = useUser()
   const router = useRouter()
   const currentMonth = getCurrentMonthRange()
@@ -86,6 +95,12 @@ export default function DashboardPage() {
     to: new Date(currentMonth.end),
   })
   const [showExpenseHistory, setShowExpenseHistory] = useState(true)
+  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false)
+  const [editingSalary, setEditingSalary] = useState<string | null>(null)
+  const [salaryForm, setSalaryForm] = useState({
+    description: "",
+    amount: "",
+  })
 
   const formattedRange =
     dateRange?.from && dateRange?.to
@@ -127,8 +142,8 @@ export default function DashboardPage() {
   }, [installments, formattedRange])
 
   const totalExpenses = personalStats.total + installmentsInPeriod
-  const currentSalary = salary.find((s) => s.type === "personal")?.amount || 0
-  const balance = currentSalary - totalExpenses
+  const totalSalary = salary.filter((s) => s.type === "personal").reduce((sum, s) => sum + s.amount, 0)
+  const balance = totalSalary - totalExpenses
   const isNegative = balance < 0
 
   const expenseHistory = useMemo(() => {
@@ -182,10 +197,60 @@ export default function DashboardPage() {
     })
   }, [installments])
 
+  const handleSalarySubmit = () => {
+    const amount = Number.parseFloat(salaryForm.amount)
+    if (!salaryForm.description || amount <= 0) {
+      return
+    }
+
+    if (editingSalary) {
+      updateSalary(editingSalary, {
+        description: salaryForm.description,
+        amount,
+      })
+    } else {
+      addSalary({
+        description: salaryForm.description,
+        amount,
+        type: "personal",
+      })
+    }
+
+    setSalaryForm({ description: "", amount: "" })
+    setEditingSalary(null)
+    setSalaryDialogOpen(false)
+  }
+
+  const handleEditSalary = (salaryId: string) => {
+    const salaryToEdit = salary.find((s) => s.id === salaryId)
+    if (salaryToEdit) {
+      setSalaryForm({
+        description: salaryToEdit.description,
+        amount: salaryToEdit.amount.toString(),
+      })
+      setEditingSalary(salaryId)
+      setSalaryDialogOpen(true)
+    }
+  }
+
+  const handleDeleteSalary = (salaryId: string) => {
+    deleteSalary(salaryId)
+  }
+
+  const handleOpenSalaryDialog = () => {
+    setSalaryForm({ description: "", amount: "" })
+    setEditingSalary(null)
+    setSalaryDialogOpen(true)
+  }
+
   const handleLogout = () => {
     logout()
     router.push("/login")
   }
+
+  const percentage = useMemo(() => {
+    return totalSalary > 0 ? (totalExpenses / totalSalary) * 100 : 0
+  }, [totalExpenses, totalSalary])
 
   return (
     <AuthGuard>
@@ -220,6 +285,163 @@ export default function DashboardPage() {
                 >
                   Sair
                 </Button>
+                <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="icon"
+                      className="bg-green-600 hover:bg-green-700 text-white h-10 w-10 sm:h-12 sm:w-12 rounded-xl shadow-lg"
+                      title="Gerenciar Salários"
+                    >
+                      <DollarSignIcon />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-green-50 border-2 border-green-200">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                        Gerenciar Salários
+                      </DialogTitle>
+                      <DialogDescription className="text-slate-600">
+                        Adicione, edite ou remova suas fontes de renda
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6 pt-4">
+                      {/* Add New Salary Form */}
+                      <Card className="bg-white border-2 border-green-200">
+                        <CardHeader>
+                          <CardTitle className="text-lg text-green-700">
+                            {editingSalary ? "Editar Salário" : "Adicionar Novo Salário"}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700">Descrição</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Salário Principal, Freelance, Bônus"
+                              value={salaryForm.description}
+                              onChange={(e) => setSalaryForm({ ...salaryForm, description: e.target.value })}
+                              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700">Valor Mensal (R$)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0,00"
+                              value={salaryForm.amount}
+                              onChange={(e) => setSalaryForm({ ...salaryForm, amount: e.target.value })}
+                              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 text-lg"
+                            />
+                          </div>
+                          <Button
+                            onClick={handleSalarySubmit}
+                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+                            disabled={!salaryForm.description || !salaryForm.amount}
+                          >
+                            {editingSalary ? "Atualizar Salário" : "Adicionar Salário"}
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      {/* Salary List */}
+                      <Card className="bg-white border-2 border-slate-200">
+                        <CardHeader>
+                          <CardTitle className="text-lg text-slate-700">Salários Cadastrados</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {salary.length === 0 ? (
+                            <p className="text-sm text-slate-600 text-center py-4">
+                              Nenhum salário cadastrado. Adicione um acima para começar.
+                            </p>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                {salary.map((sal) => (
+                                  <div
+                                    key={sal.id}
+                                    className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200"
+                                  >
+                                    <div className="flex-1">
+                                      <p className="text-sm font-semibold text-slate-700">{sal.description}</p>
+                                      <p className="text-lg font-bold text-green-600">{formatCurrency(sal.amount)}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleEditSalary(sal.id)}
+                                        className="border-slate-300 hover:bg-slate-100"
+                                      >
+                                        Editar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleDeleteSalary(sal.id)}
+                                        className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                      >
+                                        Excluir
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Summary */}
+                              <div className="space-y-2 pt-4 border-t-2 border-slate-200">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-slate-600">Total de Salários</span>
+                                  <span className="text-xl font-bold text-green-600">
+                                    {formatCurrency(totalSalary)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-slate-600">Total Gasto</span>
+                                  <span className="text-lg font-bold text-orange-600">
+                                    {formatCurrency(totalExpenses)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between pt-2 border-t-2 border-slate-200">
+                                  <span className="text-sm font-semibold text-slate-700">Restante</span>
+                                  <span
+                                    className={`text-2xl font-bold ${balance >= 0 ? "text-green-600" : "text-red-600"}`}
+                                  >
+                                    {formatCurrency(balance)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Progress Bar */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-slate-600">Utilizado do Orçamento</span>
+                                  <span className={percentage > 100 ? "text-red-600 font-semibold" : "text-slate-600"}>
+                                    {percentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="h-4 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full transition-all ${
+                                      percentage > 100
+                                        ? "bg-gradient-to-r from-red-500 to-red-600"
+                                        : percentage > 80
+                                          ? "bg-gradient-to-r from-orange-500 to-orange-600"
+                                          : "bg-gradient-to-r from-green-500 to-emerald-600"
+                                    }`}
+                                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <UnifiedExpenseDialog />
               </div>
             </div>
@@ -243,15 +465,15 @@ export default function DashboardPage() {
             <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0 shadow-lg">
               <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Salário</CardTitle>
+                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Salário Total</CardTitle>
                   <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
                     <DollarSignIcon />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(currentSalary)}</div>
-                <p className="text-xs opacity-80 mt-2">Renda mensal</p>
+                <div className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(totalSalary)}</div>
+                <p className="text-xs opacity-80 mt-2">Renda mensal total</p>
               </CardContent>
             </Card>
 
@@ -302,7 +524,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl sm:text-3xl font-bold font-mono">
-                  {currentSalary > 0 ? ((totalExpenses / currentSalary) * 100).toFixed(1) : "0"}%
+                  {totalSalary > 0 ? ((totalExpenses / totalSalary) * 100).toFixed(1) : "0"}%
                 </div>
                 <p className="text-xs opacity-80 mt-2">Utilizado do orçamento</p>
               </CardContent>
@@ -328,11 +550,11 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          <Card className="bg-gradient-to-br from-white to-yellow-50/50 backdrop-blur border-2 border-yellow-300 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white rounded-t-lg">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+          <Card className="bg-white/80 backdrop-blur border-2 border-blue-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl sm:text-2xl font-bold">Parcelamentos Ativos</CardTitle>
+                  <CardTitle className="text-xl font-bold text-slate-900">Parcelamentos Ativos</CardTitle>
                   <CardDescription className="text-yellow-100 font-medium text-sm sm:text-base">
                     {activeInstallments.length}{" "}
                     {activeInstallments.length === 1 ? "parcelamento ativo" : "parcelamentos ativos"}
@@ -591,7 +813,7 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {expenseHistory.map((item, index) => {
                     const maxValue = Math.max(...expenseHistory.map((h) => h.total))
-                    const percentage = maxValue > 0 ? (item.total / maxValue) * 100 : 0
+                    const itemPercentage = maxValue > 0 ? (item.total / maxValue) * 100 : 0
 
                     return (
                       <div key={index} className="space-y-2">
@@ -602,7 +824,7 @@ export default function DashboardPage() {
                         <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
-                            style={{ width: `${percentage}%` }}
+                            style={{ width: `${itemPercentage}%` }}
                           />
                         </div>
                       </div>

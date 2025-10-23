@@ -44,9 +44,12 @@ export interface CategoryBudget {
 }
 
 export interface Salary {
+  id: string
+  description: string
   amount: number
   type: ExpenseType
   userId: string
+  createdAt: string
 }
 
 export interface ExpenseStats {

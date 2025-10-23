@@ -27,10 +27,6 @@ import { useExpenses } from "@/lib/expense-context"
 import type { ExpenseType } from "@/lib/types"
 import { formatCurrency, getCurrentMonthRange } from "@/lib/expense-utils"
 import { useState } from "react"
-import { doc, deleteDoc } from "firebase/firestore"
-import { getFirebaseFirestore } from "@/lib/firebase"
-import { useUser } from "@/lib/user-context"
-import { toast } from "@/hooks/use-toast"
 
 const EditIcon = () => (
   <svg
@@ -80,59 +76,87 @@ const DollarIcon = () => (
   </svg>
 )
 
+const PlusIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+)
+
 interface SalaryManagerProps {
   type: ExpenseType
 }
 
 export function SalaryManager({ type }: SalaryManagerProps) {
-  const { salary, setSalary, getExpensesByDateRange } = useExpenses()
-  const { currentUser } = useUser()
+  const { salary, addSalary, updateSalary, deleteSalary, getExpensesByDateRange } = useExpenses()
   const [open, setOpen] = useState(false)
-  const [salaryValue, setSalaryValue] = useState("")
+  const [editingSalary, setEditingSalary] = useState<string | null>(null)
+  const [salaryForm, setSalaryForm] = useState({
+    description: "",
+    amount: "",
+  })
 
   const currentMonth = getCurrentMonthRange()
   const expenses = getExpensesByDateRange(currentMonth.start, currentMonth.end, type)
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
 
-  const currentSalary = salary.find((s) => s.type === type)?.amount || 0
-  const remaining = currentSalary - totalExpenses
-  const percentage = currentSalary > 0 ? (totalExpenses / currentSalary) * 100 : 0
+  const userSalaries = salary.filter((s) => s.type === type)
+  const totalSalary = userSalaries.reduce((sum, s) => sum + s.amount, 0)
+  const remaining = totalSalary - totalExpenses
+  const percentage = totalSalary > 0 ? (totalExpenses / totalSalary) * 100 : 0
 
-  const handleSetSalary = () => {
-    setSalary({
-      amount: Number.parseFloat(salaryValue),
-      type,
-    })
-    setSalaryValue("")
+  const handleSubmit = () => {
+    const amount = Number.parseFloat(salaryForm.amount)
+    if (!salaryForm.description || amount <= 0) {
+      return
+    }
+
+    if (editingSalary) {
+      updateSalary(editingSalary, {
+        description: salaryForm.description,
+        amount,
+      })
+    } else {
+      addSalary({
+        description: salaryForm.description,
+        amount,
+        type,
+      })
+    }
+
+    setSalaryForm({ description: "", amount: "" })
+    setEditingSalary(null)
     setOpen(false)
   }
 
-  const handleDeleteSalary = async () => {
-    if (!currentUser) return
-
-    try {
-      const db = getFirebaseFirestore()
-      const salaryId = `${type}_${currentUser.id}`
-      const salaryRef = doc(db, "salary", salaryId)
-      await deleteDoc(salaryRef)
-      toast({
-        title: "Salário excluído",
-        description: "O salário foi removido com sucesso.",
+  const handleEdit = (salaryId: string) => {
+    const salaryToEdit = userSalaries.find((s) => s.id === salaryId)
+    if (salaryToEdit) {
+      setSalaryForm({
+        description: salaryToEdit.description,
+        amount: salaryToEdit.amount.toString(),
       })
-    } catch (error: any) {
-      console.error("Error deleting salary:", error)
-      toast({
-        title: "Erro ao excluir salário",
-        description: error.message || "Tente novamente mais tarde.",
-        variant: "destructive",
-      })
+      setEditingSalary(salaryId)
+      setOpen(true)
     }
   }
 
+  const handleDelete = (salaryId: string) => {
+    deleteSalary(salaryId)
+  }
+
   const handleOpenDialog = () => {
-    if (currentSalary > 0) {
-      setSalaryValue(currentSalary.toString())
-    }
+    setSalaryForm({ description: "", amount: "" })
+    setEditingSalary(null)
     setOpen(true)
   }
 
@@ -143,94 +167,125 @@ export function SalaryManager({ type }: SalaryManagerProps) {
           <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
             <DollarIcon />
           </div>
-          <CardTitle className="text-slate-800">Salário</CardTitle>
+          <CardTitle className="text-slate-800">Salários</CardTitle>
         </div>
-        <div className="flex gap-2">
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button
-                size="sm"
-                onClick={handleOpenDialog}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md"
-              >
-                <EditIcon />
-                <span className="ml-2">{currentSalary > 0 ? "Editar" : "Definir"}</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-gradient-to-br from-white to-green-50 border-2 border-green-200">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  {currentSalary > 0 ? "Editar Salário" : "Definir Salário"}
-                </DialogTitle>
-                <DialogDescription className="text-slate-600">
-                  {currentSalary > 0
-                    ? "Atualize seu salário mensal para acompanhar seus gastos"
-                    : "Defina seu salário mensal para acompanhar seus gastos"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label className="text-slate-700 font-semibold">Salário Mensal (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0,00"
-                    value={salaryValue}
-                    onChange={(e) => setSalaryValue(e.target.value)}
-                    className="border-green-200 focus:border-green-400 focus:ring-green-400 text-lg"
-                  />
-                </div>
-                <Button
-                  onClick={handleSetSalary}
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
-                  disabled={!salaryValue}
-                >
-                  Salvar Salário
-                </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button
+              size="sm"
+              onClick={handleOpenDialog}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md"
+            >
+              <PlusIcon />
+              <span className="ml-2">Adicionar</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-gradient-to-br from-white to-green-50 border-2 border-green-200">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                {editingSalary ? "Editar Salário" : "Adicionar Salário"}
+              </DialogTitle>
+              <DialogDescription className="text-slate-600">
+                {editingSalary ? "Atualize as informações do salário" : "Adicione uma nova fonte de renda"}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-semibold">Descrição</Label>
+                <Input
+                  type="text"
+                  placeholder="Ex: Salário Principal, Freelance, Bônus"
+                  value={salaryForm.description}
+                  onChange={(e) => setSalaryForm({ ...salaryForm, description: e.target.value })}
+                  className="border-green-200 focus:border-green-400 focus:ring-green-400"
+                />
               </div>
-            </DialogContent>
-          </Dialog>
-          {currentSalary > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 bg-transparent"
-                >
-                  <TrashIcon />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-white border-2 border-red-200">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="text-red-600">Excluir Salário</AlertDialogTitle>
-                  <AlertDialogDescription className="text-slate-600">
-                    Tem certeza que deseja excluir o salário? Esta ação não pode ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="border-slate-300">Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteSalary} className="bg-red-600 hover:bg-red-700 text-white">
-                    Excluir
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-semibold">Valor Mensal (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0,00"
+                  value={salaryForm.amount}
+                  onChange={(e) => setSalaryForm({ ...salaryForm, amount: e.target.value })}
+                  className="border-green-200 focus:border-green-400 focus:ring-green-400 text-lg"
+                />
+              </div>
+              <Button
+                onClick={handleSubmit}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+                disabled={!salaryForm.description || !salaryForm.amount}
+              >
+                {editingSalary ? "Atualizar" : "Adicionar"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent className="space-y-4">
-        {currentSalary === 0 ? (
+        {userSalaries.length === 0 ? (
           <p className="text-sm text-slate-600 text-center py-4">
-            Nenhum salário definido. Clique em "Definir" para começar.
+            Nenhum salário definido. Clique em "Adicionar" para começar.
           </p>
         ) : (
           <>
             <div className="space-y-2">
+              {userSalaries.map((sal) => (
+                <div
+                  key={sal.id}
+                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-700">{sal.description}</p>
+                    <p className="text-lg font-bold text-green-600">{formatCurrency(sal.amount)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEdit(sal.id)}
+                      className="border-slate-300 hover:bg-slate-100"
+                    >
+                      <EditIcon />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 bg-transparent"
+                        >
+                          <TrashIcon />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-white border-2 border-red-200">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-red-600">Excluir Salário</AlertDialogTitle>
+                          <AlertDialogDescription className="text-slate-600">
+                            Tem certeza que deseja excluir "{sal.description}"? Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="border-slate-300">Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(sal.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2 pt-2 border-t-2 border-slate-200">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Salário Mensal</span>
-                <span className="text-lg font-bold text-green-600">{formatCurrency(currentSalary)}</span>
+                <span className="text-sm text-slate-600">Total de Salários</span>
+                <span className="text-lg font-bold text-green-600">{formatCurrency(totalSalary)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600">Total Gasto</span>

@@ -4,7 +4,14 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useExpenses } from "@/lib/expense-context"
@@ -68,7 +75,7 @@ export function CategoryManagerDialog() {
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
             Gerenciar Categorias
           </DialogTitle>
-          <p className="text-sm text-slate-600">Adicione ou remova categorias de gastos</p>
+          <DialogDescription className="text-slate-600">Adicione ou remova categorias de gastos</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-4">

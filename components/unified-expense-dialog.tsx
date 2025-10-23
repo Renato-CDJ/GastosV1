@@ -328,55 +328,76 @@ export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpens
                 </Select>
               </div>
 
-              <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center justify-between">
+              <div className="space-y-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-300">
                   <div className="space-y-0.5">
-                    <Label htmlFor="recurring" className="text-slate-700 font-semibold">
+                    <Label htmlFor="recurring" className="text-slate-700 font-semibold cursor-pointer">
                       Gasto Recorrente
                     </Label>
                     <p className="text-xs text-slate-600">Este gasto se repete mensalmente</p>
                   </div>
-                  <Switch
-                    id="recurring"
-                    checked={simpleForm.isRecurring}
-                    onCheckedChange={(checked) => setSimpleForm({ ...simpleForm, isRecurring: checked })}
-                  />
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs font-semibold ${simpleForm.isRecurring ? "text-green-600" : "text-slate-400"}`}
+                    >
+                      {simpleForm.isRecurring ? "ATIVO" : "INATIVO"}
+                    </span>
+                    <Switch
+                      id="recurring"
+                      checked={simpleForm.isRecurring}
+                      onCheckedChange={(checked) => setSimpleForm({ ...simpleForm, isRecurring: checked })}
+                    />
+                  </div>
                 </div>
 
                 {simpleForm.isRecurring && (
                   <>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-300">
                       <div className="space-y-0.5">
-                        <Label htmlFor="fixed" className="text-slate-700 font-semibold">
+                        <Label htmlFor="fixed" className="text-slate-700 font-semibold cursor-pointer">
                           Valor Fixo
                         </Label>
                         <p className="text-xs text-slate-600">O valor é sempre o mesmo</p>
                       </div>
-                      <Switch
-                        id="fixed"
-                        checked={simpleForm.isFixed}
-                        onCheckedChange={(checked) => setSimpleForm({ ...simpleForm, isFixed: checked })}
-                      />
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-semibold ${simpleForm.isFixed ? "text-green-600" : "text-slate-400"}`}
+                        >
+                          {simpleForm.isFixed ? "SIM" : "NÃO"}
+                        </span>
+                        <Switch
+                          id="fixed"
+                          checked={simpleForm.isFixed}
+                          onCheckedChange={(checked) => setSimpleForm({ ...simpleForm, isFixed: checked })}
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-300">
                       <div className="space-y-0.5">
-                        <Label htmlFor="simple-indefinite" className="text-slate-700 font-semibold">
+                        <Label htmlFor="simple-indefinite" className="text-slate-700 font-semibold cursor-pointer">
                           Duração Indeterminada
                         </Label>
                         <p className="text-xs text-slate-600">Sem data de término definida</p>
                       </div>
-                      <Switch
-                        id="simple-indefinite"
-                        checked={simpleForm.isIndefinite}
-                        onCheckedChange={(checked) =>
-                          setSimpleForm({
-                            ...simpleForm,
-                            isIndefinite: checked,
-                            recurringEndDate: checked ? "" : simpleForm.recurringEndDate,
-                          })
-                        }
-                      />
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-semibold ${simpleForm.isIndefinite ? "text-green-600" : "text-slate-400"}`}
+                        >
+                          {simpleForm.isIndefinite ? "SIM" : "NÃO"}
+                        </span>
+                        <Switch
+                          id="simple-indefinite"
+                          checked={simpleForm.isIndefinite}
+                          onCheckedChange={(checked) =>
+                            setSimpleForm({
+                              ...simpleForm,
+                              isIndefinite: checked,
+                              recurringEndDate: checked ? "" : simpleForm.recurringEndDate,
+                            })
+                          }
+                        />
+                      </div>
                     </div>
 
                     {!simpleForm.isIndefinite && (
@@ -482,18 +503,25 @@ export function UnifiedExpenseDialog({ defaultType = "personal" }: UnifiedExpens
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-blue-300">
                 <div className="space-y-0.5">
-                  <Label htmlFor="indefinite" className="text-slate-700 font-semibold">
+                  <Label htmlFor="indefinite" className="text-slate-700 font-semibold cursor-pointer">
                     Duração Indeterminada
                   </Label>
                   <p className="text-xs text-slate-600">Parcelamento sem data de término definida</p>
                 </div>
-                <Switch
-                  id="indefinite"
-                  checked={installmentForm.isIndefinite}
-                  onCheckedChange={(checked) => setInstallmentForm({ ...installmentForm, isIndefinite: checked })}
-                />
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs font-semibold ${installmentForm.isIndefinite ? "text-green-600" : "text-slate-400"}`}
+                  >
+                    {installmentForm.isIndefinite ? "SIM" : "NÃO"}
+                  </span>
+                  <Switch
+                    id="indefinite"
+                    checked={installmentForm.isIndefinite}
+                    onCheckedChange={(checked) => setInstallmentForm({ ...installmentForm, isIndefinite: checked })}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

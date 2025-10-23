@@ -28,7 +28,9 @@ interface ExpenseContextType {
   updateExpense: (id: string, expense: Partial<Expense>) => void
   deleteExpense: (id: string) => void
   setBudget: (budget: Omit<CategoryBudget, "userId">) => void
-  setSalary: (salary: Omit<Salary, "userId">) => void
+  addSalary: (salary: Omit<Salary, "id" | "userId" | "createdAt">) => void
+  updateSalary: (id: string, salary: Partial<Salary>) => void
+  deleteSalary: (id: string) => void
   addInstallment: (installment: Omit<Installment, "id" | "createdAt" | "paidInstallments" | "userId">) => void
   updateInstallment: (id: string, installment: Partial<Installment>) => void
   deleteInstallment: (id: string) => void
@@ -147,9 +149,9 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       (snapshot) => {
         const salaryData: Salary[] = []
         snapshot.forEach((doc) => {
-          const data = doc.data()
-          salaryData.push({ ...data } as Salary)
+          salaryData.push({ id: doc.id, ...doc.data() } as Salary)
         })
+        console.log("[v0] Salaries updated, count:", salaryData.length)
         setSalaryState(salaryData)
       },
       (error) => handlePermissionError(error, "salary"),
@@ -280,28 +282,28 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     [currentUser],
   )
 
-  const setSalary = useCallback(
-    async (salaryData: Omit<Salary, "userId">) => {
+  const addSalary = useCallback(
+    async (salaryData: Omit<Salary, "id" | "userId" | "createdAt">) => {
       if (!currentUser) return
 
       try {
         const db = getFirebaseFirestore()
-        const salaryWithUser: Salary = {
+        const salaryWithUser = {
           ...salaryData,
           userId: currentUser.id,
+          createdAt: new Date().toISOString(),
         }
 
-        const salaryId = `${salaryWithUser.type}_${salaryWithUser.userId}`
-        const salaryRef = doc(db, "salary", salaryId)
-        await setDoc(salaryRef, salaryWithUser)
+        const docRef = await addDoc(collection(db, "salary"), salaryWithUser)
+        console.log("[v0] Salary added successfully with ID:", docRef.id)
         toast({
-          title: "Salário atualizado",
+          title: "Salário adicionado",
           description: "O salário foi salvo com sucesso.",
         })
       } catch (error: any) {
-        console.error("Error setting salary:", error)
+        console.error("Error adding salary:", error)
         toast({
-          title: "Erro ao atualizar salário",
+          title: "Erro ao adicionar salário",
           description: error.message || "Tente novamente mais tarde.",
           variant: "destructive",
         })
@@ -310,6 +312,46 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     },
     [currentUser],
   )
+
+  const updateSalary = useCallback(async (id: string, updatedData: Partial<Salary>) => {
+    try {
+      const db = getFirebaseFirestore()
+      const salaryRef = doc(db, "salary", id)
+      await updateDoc(salaryRef, updatedData)
+      toast({
+        title: "Salário atualizado",
+        description: "As alterações foram salvas com sucesso.",
+      })
+    } catch (error: any) {
+      console.error("Error updating salary:", error)
+      toast({
+        title: "Erro ao atualizar salário",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }, [])
+
+  const deleteSalary = useCallback(async (id: string) => {
+    try {
+      const db = getFirebaseFirestore()
+      const salaryRef = doc(db, "salary", id)
+      await deleteDoc(salaryRef)
+      toast({
+        title: "Salário excluído",
+        description: "O salário foi removido com sucesso.",
+      })
+    } catch (error: any) {
+      console.error("Error deleting salary:", error)
+      toast({
+        title: "Erro ao excluir salário",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }, [])
 
   const addInstallment = useCallback(
     async (installment: Omit<Installment, "id" | "createdAt" | "paidInstallments" | "userId">) => {
@@ -521,7 +563,9 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         updateExpense,
         deleteExpense,
         setBudget,
-        setSalary,
+        addSalary,
+        updateSalary,
+        deleteSalary,
         addInstallment,
         updateInstallment,
         deleteInstallment,
