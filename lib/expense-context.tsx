@@ -321,10 +321,11 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const cleanInstallment = Object.fromEntries(
           Object.entries({
             ...installment,
-            type: "personal", // Explicitly set type to personal
+            type: "personal",
             createdAt: new Date().toISOString(),
             paidInstallments: [],
             userId: currentUser.id,
+            isIndefinite: installment.isIndefinite || false,
           }).filter(([_, value]) => value !== undefined),
         )
 

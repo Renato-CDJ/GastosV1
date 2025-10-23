@@ -31,6 +31,9 @@ export interface Expense {
   createdAt: string
   notes?: string
   userId: string
+  isRecurring?: boolean
+  isFixed?: boolean
+  recurringEndDate?: string // undefined means indefinite
 }
 
 export interface CategoryBudget {
@@ -69,4 +72,5 @@ export interface Installment {
   createdAt: string
   notes?: string
   userId: string
+  isIndefinite?: boolean
 }

@@ -107,9 +107,10 @@ const CreditCardIcon = () => (
 interface ExpenseListProps {
   type: ExpenseType
   dateRange?: { start: string; end: string }
+  limit?: number // Added limit prop for dashboard
 }
 
-export function ExpenseList({ type, dateRange }: ExpenseListProps) {
+export function ExpenseList({ type, dateRange, limit }: ExpenseListProps) {
   const { expenses, deleteExpense, getExpensesByType, getExpensesByDateRange } = useExpenses()
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
@@ -118,6 +119,8 @@ export function ExpenseList({ type, dateRange }: ExpenseListProps) {
     : getExpensesByType(type)
 
   const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const displayExpenses = limit ? sortedExpenses.slice(0, limit) : sortedExpenses
 
   if (sortedExpenses.length === 0) {
     return (
@@ -131,7 +134,7 @@ export function ExpenseList({ type, dateRange }: ExpenseListProps) {
   return (
     <>
       <div className="space-y-3">
-        {sortedExpenses.map((expense) => (
+        {displayExpenses.map((expense) => (
           <Card
             key={expense.id}
             className="p-4 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-slate-50 border-2 border-slate-200"
@@ -163,6 +166,16 @@ export function ExpenseList({ type, dateRange }: ExpenseListProps) {
                     <CreditCardIcon />
                     <span>{paymentMethodLabels[expense.paymentMethod]}</span>
                   </div>
+                  {expense.isRecurring && (
+                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300">
+                      🔄 Recorrente
+                    </Badge>
+                  )}
+                  {expense.isFixed && (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
+                      📌 Fixo
+                    </Badge>
+                  )}
                 </div>
 
                 {expense.notes && <p className="text-sm text-slate-600 mt-2 line-clamp-2">{expense.notes}</p>}

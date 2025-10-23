@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AddExpenseDialog } from "@/components/add-expense-dialog"
+import { UnifiedExpenseDialog } from "@/components/unified-expense-dialog"
 import { useExpenses } from "@/lib/expense-context"
 import { calculateStats, formatCurrency, getCurrentMonthRange } from "@/lib/expense-utils"
 import Link from "next/link"
@@ -10,7 +10,6 @@ import { AuthGuard } from "@/components/auth-guard"
 import { useUser } from "@/lib/user-context"
 import { useRouter } from "next/navigation"
 import { FirebaseConfigAlert } from "@/components/firebase-config-alert"
-import { useEffect } from "react"
 
 const UserIcon = () => (
   <svg
@@ -44,6 +43,23 @@ const ArrowRightIcon = () => (
   </svg>
 )
 
+const BarChartIcon = () => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="12" y1="20" x2="12" y2="10"></line>
+    <line x1="18" y1="20" x2="18" y2="4"></line>
+    <line x1="6" y1="20" x2="6" y2="16"></line>
+  </svg>
+)
+
 const CreditCardIcon = () => (
   <svg
     width="24"
@@ -66,24 +82,8 @@ export default function Home() {
   const router = useRouter()
   const currentMonth = getCurrentMonthRange()
 
-  useEffect(() => {
-    console.log("[v0] Home page - Total expenses in context:", expenses.length)
-    console.log("[v0] Home page - Current month range:", currentMonth)
-    console.log("[v0] Home page - All expenses:", expenses)
-  }, [expenses, currentMonth])
-
   const personalExpenses = getExpensesByDateRange(currentMonth.start, currentMonth.end, "personal")
-
-  useEffect(() => {
-    console.log("[v0] Home page - Personal expenses for current month:", personalExpenses.length)
-    console.log("[v0] Home page - Personal expenses data:", personalExpenses)
-  }, [personalExpenses])
-
   const personalStats = calculateStats(personalExpenses)
-
-  useEffect(() => {
-    console.log("[v0] Home page - Personal stats:", personalStats)
-  }, [personalStats])
 
   const activeInstallmentsCount = installments?.length || 0
   const totalOutstanding =
@@ -99,8 +99,8 @@ export default function Home() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg">
           <div className="container mx-auto px-6 py-6">
             <div className="flex items-center justify-between">
               <div>
@@ -119,7 +119,7 @@ export default function Home() {
                 >
                   Sair
                 </Button>
-                <AddExpenseDialog />
+                <UnifiedExpenseDialog />
               </div>
             </div>
           </div>
@@ -128,90 +128,75 @@ export default function Home() {
         <main className="container mx-auto px-6 py-12 space-y-16">
           <FirebaseConfigAlert />
 
-          <div className="max-w-5xl mx-auto space-y-10">
+          <div className="max-w-3xl mx-auto space-y-10">
             <div className="text-center space-y-4">
-              <h2 className="text-4xl font-bold text-gray-900 text-balance">Organize suas finanças</h2>
+              <h2 className="text-4xl font-bold text-gray-900 text-balance">Dashboard Financeiro Completo</h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto text-pretty">
-                Acompanhe seus gastos pessoais e parcelamentos em um só lugar
+                Acesse seu dashboard interativo com visão completa de gastos, parcelamentos e histórico financeiro
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Link href="/personal" className="group">
-                <Card className="h-full border-2 border-gray-200 hover:border-blue-500 transition-all duration-300 hover:shadow-lg bg-white">
-                  <CardHeader className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="h-14 w-14 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600">
-                        <UserIcon />
-                      </div>
-                      <div className="group-hover:translate-x-1 transition-transform text-gray-400 group-hover:text-blue-600">
-                        <ArrowRightIcon />
-                      </div>
+            <Link href="/dashboard" className="block group">
+              <Card className="border-2 border-purple-200 hover:border-purple-500 transition-all duration-300 hover:shadow-xl bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50">
+                <CardHeader className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                      <BarChartIcon />
                     </div>
-                    <div>
-                      <CardTitle className="text-2xl text-gray-900">Meus Gastos</CardTitle>
-                      <CardDescription className="text-gray-600 mt-1">Seus gastos pessoais</CardDescription>
+                    <div className="group-hover:translate-x-2 transition-transform text-gray-400 group-hover:text-purple-600">
+                      <ArrowRightIcon />
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-sm text-gray-600">Este mês</span>
-                        <span className="text-2xl font-bold font-mono text-gray-900">
-                          {formatCurrency(personalStats.total)}
-                        </span>
-                      </div>
-                      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-600 rounded-full" style={{ width: "65%" }} />
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Transações</span>
-                        <span className="font-semibold text-gray-900">{personalStats.count}</span>
-                      </div>
+                  </div>
+                  <div>
+                    <CardTitle className="text-3xl text-gray-900">Dashboard Financeiro</CardTitle>
+                    <CardDescription className="text-gray-600 mt-2 text-base">
+                      Visão completa e interativa das suas finanças
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 p-4 bg-white/60 rounded-lg">
+                      <p className="text-sm text-gray-600">Gastos do Mês</p>
+                      <p className="text-2xl font-bold font-mono text-gray-900">
+                        {formatCurrency(personalStats.total)}
+                      </p>
+                      <p className="text-xs text-gray-500">{personalStats.count} transações</p>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    <div className="space-y-2 p-4 bg-white/60 rounded-lg">
+                      <p className="text-sm text-gray-600">Parcelamentos</p>
+                      <p className="text-2xl font-bold font-mono text-gray-900">{activeInstallmentsCount}</p>
+                      <p className="text-xs text-gray-500">ativos</p>
+                    </div>
+                  </div>
 
-              <Link href="/installments" className="group">
-                <Card className="h-full border-2 border-gray-200 hover:border-yellow-500 transition-all duration-300 hover:shadow-lg bg-white">
-                  <CardHeader className="space-y-4">
+                  <div className="space-y-3 p-4 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <div className="h-14 w-14 rounded-2xl bg-yellow-100 flex items-center justify-center text-yellow-600">
-                        <CreditCardIcon />
-                      </div>
-                      <div className="group-hover:translate-x-1 transition-transform text-gray-400 group-hover:text-yellow-600">
-                        <ArrowRightIcon />
-                      </div>
+                      <span className="text-sm font-medium text-purple-900">Recursos Disponíveis</span>
+                      <span className="text-xs font-semibold text-purple-600 bg-white px-2 py-1 rounded">NOVO</span>
                     </div>
-                    <div>
-                      <CardTitle className="text-2xl text-gray-900">Parcelamentos</CardTitle>
-                      <CardDescription className="text-gray-600 mt-1">Compras parceladas</CardDescription>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-sm text-gray-600">Ativos</span>
-                        <span className="text-2xl font-bold font-mono text-gray-900">{activeInstallmentsCount}</span>
-                      </div>
-                      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-yellow-600 rounded-full"
-                          style={{ width: `${Math.min((activeInstallmentsCount / 10) * 100, 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Em aberto</span>
-                        <span className="font-semibold font-mono text-gray-900">
-                          {formatCurrency(totalOutstanding)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </div>
+                    <ul className="space-y-2 text-sm text-purple-800">
+                      <li className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
+                        Acompanhamento de parcelamentos com barras de progresso
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
+                        Histórico de gastos dos últimos 6 meses
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
+                        Análise de saldo e alertas de orçamento
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
+                        Gráficos interativos por categoria
+                      </li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
         </main>
       </div>
