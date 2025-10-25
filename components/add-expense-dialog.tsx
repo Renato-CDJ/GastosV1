@@ -44,7 +44,7 @@ interface AddExpenseDialogProps {
 }
 
 export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogProps) {
-  const { addExpense } = useExpenses()
+  const { addExpense, categories } = useExpenses()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -187,9 +187,9 @@ export function AddExpenseDialog({ defaultType = "personal" }: AddExpenseDialogP
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                {Object.entries(categoryLabels).map(([key, label]) => (
-                  <SelectItem key={key} value={key} className="focus:bg-blue-50">
-                    {label}
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category} className="focus:bg-blue-50">
+                    {categoryLabels[category as keyof typeof categoryLabels] || category}
                   </SelectItem>
                 ))}
               </SelectContent>

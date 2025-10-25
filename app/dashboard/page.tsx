@@ -159,6 +159,9 @@ export default function DashboardPage() {
   const [showPaymentMethodChart, setShowPaymentMethodChart] = useState(true)
   const [showCategoryChart, setShowCategoryChart] = useState(true)
 
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [categoryExpensesOpen, setCategoryExpensesOpen] = useState(false)
+
   const formattedRange =
     dateRange?.from && dateRange?.to
       ? {
@@ -200,6 +203,7 @@ export default function DashboardPage() {
 
   const totalExpenses = personalStats.total + installmentsInPeriod
   const totalSalary = salary.filter((s) => s.type === "personal").reduce((sum, s) => sum + s.amount, 0)
+
   const balance = totalSalary - totalExpenses
   const isNegative = balance < 0
 
@@ -294,6 +298,16 @@ export default function DashboardPage() {
       .sort((a, b) => b.value - a.value)
   }, [personalExpenses, personalStats.total])
 
+  const categoryExpenses = useMemo(() => {
+    if (!selectedCategory || !formattedRange) return []
+    return personalExpenses.filter((expense) => expense.category === selectedCategory)
+  }, [selectedCategory, personalExpenses, formattedRange])
+
+  const handleCategoryClick = (category: string) => {
+    setSelectedCategory(category)
+    setCategoryExpensesOpen(true)
+  }
+
   const handleSalarySubmit = () => {
     const amount = Number.parseFloat(salaryForm.amount)
     if (!salaryForm.description || amount <= 0) {
@@ -370,244 +384,276 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xl border-b-4 border-white/20">
-          <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <Link href="/">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hover:bg-white/20 text-white h-10 w-10 sm:h-12 sm:w-12 rounded-xl"
-                  >
-                    <ArrowLeftIcon />
-                  </Button>
-                </Link>
-                <div>
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Dashboard Financeiro</h1>
-                  <p className="text-blue-100 mt-1 text-xs sm:text-sm font-medium">Visão completa das suas finanças</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/40">
+        <header className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-2xl border-b border-white/10">
+          <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-7">
+            <div className="flex flex-col gap-4">
+              {/* Top Row: Title and User Info */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <Link href="/">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover:bg-white/20 text-white h-11 w-11 sm:h-12 sm:w-12 rounded-xl transition-all hover:scale-105 shadow-lg"
+                    >
+                      <ArrowLeftIcon />
+                    </Button>
+                  </Link>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight drop-shadow-md">
+                      Dashboard Financeiro
+                    </h1>
+                    <p className="text-emerald-100 mt-1.5 text-sm sm:text-base font-medium">
+                      Controle total das suas finanças
+                    </p>
+                  </div>
+                </div>
+
+                {/* User Info Card */}
+                <div className="hidden sm:flex items-center bg-white/15 backdrop-blur-md px-5 py-2.5 rounded-xl border border-white/20 shadow-lg">
+                  <div className="text-right">
+                    <p className="text-xs text-emerald-100 uppercase tracking-wider font-semibold">Usuário</p>
+                    <p className="font-bold text-lg">{currentUser?.displayName}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                <div className="text-right bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-xl border border-white/20 flex-1 sm:flex-initial">
-                  <p className="text-xs text-blue-200 uppercase tracking-wider font-semibold">Usuário</p>
-                  <p className="font-bold text-sm sm:text-base lg:text-lg truncate">{currentUser?.displayName}</p>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                {/* Mobile User Info */}
+                <div className="sm:hidden flex items-center bg-white/15 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 shadow-lg w-full">
+                  <div className="text-left">
+                    <p className="text-xs text-emerald-100 uppercase tracking-wider font-semibold">Usuário</p>
+                    <p className="font-bold text-base truncate">{currentUser?.displayName}</p>
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={handleLogout}
-                  className="font-semibold bg-transparent text-sm sm:text-base px-3 sm:px-4"
-                >
-                  Sair
-                </Button>
-                <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="icon"
-                      className="bg-green-600 hover:bg-green-700 text-white h-10 w-10 sm:h-12 sm:w-12 rounded-xl shadow-lg"
-                      title="Gerenciar Salários"
-                    >
-                      <DollarSignIcon />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-green-50 border-2 border-green-200">
-                    <DialogHeader>
-                      <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                        Gerenciar Salários
-                      </DialogTitle>
-                      <DialogDescription className="text-slate-600">
-                        Adicione, edite ou remova suas fontes de renda
-                      </DialogDescription>
-                    </DialogHeader>
 
-                    <div className="space-y-6 pt-4">
-                      {/* Add New Salary Form */}
-                      <Card className="bg-white border-2 border-green-200">
-                        <CardHeader>
-                          <CardTitle className="text-lg text-green-700">
-                            {editingSalary ? "Editar Salário" : "Adicionar Novo Salário"}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Descrição</label>
-                            <input
-                              type="text"
-                              placeholder="Ex: Salário Principal, Freelance, Bônus"
-                              value={salaryForm.description}
-                              onChange={(e) => setSalaryForm({ ...salaryForm, description: e.target.value })}
-                              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Valor Mensal (R$)</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="0,00"
-                              value={salaryForm.amount}
-                              onChange={(e) => setSalaryForm({ ...salaryForm, amount: e.target.value })}
-                              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 text-lg"
-                            />
-                          </div>
-                          <Button
-                            onClick={handleSalarySubmit}
-                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
-                            disabled={!salaryForm.description || !salaryForm.amount}
-                          >
-                            {editingSalary ? "Atualizar Salário" : "Adicionar Salário"}
-                          </Button>
-                        </CardContent>
-                      </Card>
+                <div className="flex items-center gap-3 bg-white/15 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 shadow-lg">
+                  <div className="hidden sm:block">
+                    <p className="text-xs text-emerald-100 uppercase tracking-wider font-semibold">Período</p>
+                  </div>
+                  <DateRangeSelector value={dateRange} onChange={setDateRange} />
+                </div>
 
-                      {/* Salary List */}
-                      <Card className="bg-white border-2 border-slate-200">
-                        <CardHeader>
-                          <CardTitle className="text-lg text-slate-700">Salários Cadastrados</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {salary.length === 0 ? (
-                            <p className="text-sm text-slate-600 text-center py-4">
-                              Nenhum salário cadastrado. Adicione um acima para começar.
-                            </p>
-                          ) : (
-                            <>
-                              <div className="space-y-2">
-                                {salary.map((sal) => (
-                                  <div
-                                    key={sal.id}
-                                    className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200"
-                                  >
-                                    <div className="flex-1">
-                                      <p className="text-sm font-semibold text-slate-700">{sal.description}</p>
-                                      <p className="text-lg font-bold text-green-600">{formatCurrency(sal.amount)}</p>
+                {/* Action Buttons Group */}
+                <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+                  {/* Salary Management Button */}
+                  <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        className="bg-white/10 hover:bg-white/20 border-2 border-white/30 text-white backdrop-blur-sm transition-all hover:scale-105 shadow-lg font-semibold h-11 sm:h-12 px-4 sm:px-5 rounded-xl"
+                        title="Gerenciar Salários"
+                      >
+                        <DollarSignIcon />
+                        <span className="ml-2 hidden sm:inline">Salários</span>
+                      </Button>
+                    </DialogTrigger>
+                    {/* ... existing salary dialog content ... */}
+                    <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-emerald-50 border-2 border-emerald-200 shadow-xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                          Gerenciar Salários
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-600">
+                          Adicione, edite ou remova suas fontes de renda
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-6 pt-4">
+                        {/* Add New Salary Form */}
+                        <Card className="bg-white border-2 border-emerald-200 shadow-lg">
+                          <CardHeader>
+                            <CardTitle className="text-lg text-emerald-700">
+                              {editingSalary ? "Editar Salário" : "Adicionar Novo Salário"}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-slate-700">Descrição</label>
+                              <input
+                                type="text"
+                                placeholder="Ex: Salário Principal, Freelance, Bônus"
+                                value={salaryForm.description}
+                                onChange={(e) => setSalaryForm({ ...salaryForm, description: e.target.value })}
+                                className="w-full px-3 py-2 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-sm"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-slate-700">Valor Mensal (R$)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0,00"
+                                value={salaryForm.amount}
+                                onChange={(e) => setSalaryForm({ ...salaryForm, amount: e.target.value })}
+                                className="w-full px-3 py-2 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-lg shadow-sm"
+                              />
+                            </div>
+                            <Button
+                              onClick={handleSalarySubmit}
+                              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+                              disabled={!salaryForm.description || !salaryForm.amount}
+                            >
+                              {editingSalary ? "Atualizar Salário" : "Adicionar Salário"}
+                            </Button>
+                          </CardContent>
+                        </Card>
+
+                        {/* Salary List */}
+                        <Card className="bg-white border-2 border-slate-200 shadow-lg">
+                          <CardHeader>
+                            <CardTitle className="text-lg text-slate-700">Salários Cadastrados</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {salary.length === 0 ? (
+                              <p className="text-sm text-slate-600 text-center py-4">
+                                Nenhum salário cadastrado. Adicione um acima para começar.
+                              </p>
+                            ) : (
+                              <>
+                                <div className="space-y-2">
+                                  {salary.map((sal) => (
+                                    <div
+                                      key={sal.id}
+                                      className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200"
+                                    >
+                                      <div className="flex-1">
+                                        <p className="text-sm font-semibold text-slate-700">{sal.description}</p>
+                                        <p className="text-lg font-bold text-emerald-600">
+                                          {formatCurrency(sal.amount)}
+                                        </p>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleEditSalary(sal.id)}
+                                          className="border-slate-300 hover:bg-slate-100"
+                                        >
+                                          Editar
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleDeleteSalary(sal.id)}
+                                          className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                        >
+                                          Excluir
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleEditSalary(sal.id)}
-                                        className="border-slate-300 hover:bg-slate-100"
-                                      >
-                                        Editar
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleDeleteSalary(sal.id)}
-                                        className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                      >
-                                        Excluir
-                                      </Button>
-                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Summary */}
+                                <div className="space-y-2 pt-4 border-t-2 border-slate-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-slate-600">Total de Salários</span>
+                                    <span className="text-2xl font-bold text-emerald-600">
+                                      {formatCurrency(totalSalary)}
+                                    </span>
                                   </div>
-                                ))}
-                              </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-slate-600">Total Gasto</span>
+                                    <span className="text-lg font-bold text-orange-600">
+                                      {formatCurrency(totalExpenses)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-2 border-t-2 border-slate-200">
+                                    <span className="text-sm font-semibold text-slate-700">Restante</span>
+                                    <span
+                                      className={`text-2xl font-bold ${balance >= 0 ? "text-green-600" : "text-red-600"}`}
+                                    >
+                                      {formatCurrency(balance)}
+                                    </span>
+                                  </div>
+                                </div>
 
-                              {/* Summary */}
-                              <div className="space-y-2 pt-4 border-t-2 border-slate-200">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-slate-600">Total de Salários</span>
-                                  <span className="text-xl font-bold text-green-600">
-                                    {formatCurrency(totalSalary)}
-                                  </span>
+                                {/* Progress Bar */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-600">Utilizado do Orçamento</span>
+                                    <span
+                                      className={percentage > 100 ? "text-red-600 font-semibold" : "text-slate-600"}
+                                    >
+                                      {percentage.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div className="h-4 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full transition-all ${
+                                        percentage > 100
+                                          ? "bg-gradient-to-r from-red-500 to-red-600"
+                                          : percentage > 80
+                                            ? "bg-gradient-to-r from-orange-500 to-orange-600"
+                                            : "bg-gradient-to-r from-green-500 to-emerald-600"
+                                      }`}
+                                      style={{ width: `${Math.min(percentage, 100)}%` }}
+                                    />
+                                  </div>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-slate-600">Total Gasto</span>
-                                  <span className="text-lg font-bold text-orange-600">
-                                    {formatCurrency(totalExpenses)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between pt-2 border-t-2 border-slate-200">
-                                  <span className="text-sm font-semibold text-slate-700">Restante</span>
-                                  <span
-                                    className={`text-2xl font-bold ${balance >= 0 ? "text-green-600" : "text-red-600"}`}
-                                  >
-                                    {formatCurrency(balance)}
-                                  </span>
-                                </div>
-                              </div>
+                              </>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
-                              {/* Progress Bar */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-slate-600">Utilizado do Orçamento</span>
-                                  <span className={percentage > 100 ? "text-red-600 font-semibold" : "text-slate-600"}>
-                                    {percentage.toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className="h-4 bg-slate-200 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full transition-all ${
-                                      percentage > 100
-                                        ? "bg-gradient-to-r from-red-500 to-red-600"
-                                        : percentage > 80
-                                          ? "bg-gradient-to-r from-orange-500 to-orange-600"
-                                          : "bg-gradient-to-r from-green-500 to-emerald-600"
-                                    }`}
-                                    style={{ width: `${Math.min(percentage, 100)}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                <UnifiedExpenseDialog
-                  editingInstallment={editingInstallmentData}
-                  onInstallmentEditComplete={() => setEditingInstallmentData(null)}
-                />
+                  {/* Add Expense Button */}
+                  <UnifiedExpenseDialog
+                    editingInstallment={editingInstallmentData}
+                    onInstallmentEditComplete={() => setEditingInstallmentData(null)}
+                  />
+
+                  {/* Logout Button */}
+                  <Button
+                    onClick={handleLogout}
+                    className="bg-white/10 hover:bg-white/20 border-2 border-white/30 text-white backdrop-blur-sm transition-all hover:scale-105 shadow-lg font-semibold h-11 sm:h-12 px-4 sm:px-5 rounded-xl"
+                  >
+                    <span className="hidden sm:inline">Sair</span>
+                    <span className="sm:hidden">Sair</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
-          <Card className="bg-white/80 backdrop-blur border-2 border-blue-200">
-            <CardContent className="pt-4 sm:pt-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Período de Análise</h2>
-                  <p className="text-xs sm:text-sm text-slate-600">Selecione o intervalo para visualizar</p>
-                </div>
-                <DateRangeSelector value={dateRange} onChange={setDateRange} />
-              </div>
-            </CardContent>
-          </Card>
-
           <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0 shadow-lg">
+            <Card className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] duration-300">
               <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Salário Total</CardTitle>
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <CardTitle className="text-sm font-semibold opacity-95">Salário Total</CardTitle>
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                     <DollarSignIcon />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(totalSalary)}</div>
-                <p className="text-xs opacity-80 mt-2">Renda mensal total</p>
+                <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+                  {formatCurrency(totalSalary)}
+                </div>
+                <p className="text-xs sm:text-sm opacity-90 mt-2.5 font-medium">Renda mensal total</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-red-500 to-rose-600 text-white border-0 shadow-lg">
+            <Card className="bg-gradient-to-br from-rose-500 via-red-600 to-pink-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] duration-300">
               <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Total de Gastos</CardTitle>
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <CardTitle className="text-sm font-semibold opacity-95">Total de Gastos</CardTitle>
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                     <CreditCardIcon />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(totalExpenses)}</div>
-                <p className="text-xs opacity-80 mt-2">
+                <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+                  {formatCurrency(totalExpenses)}
+                </div>
+                <p className="text-xs sm:text-sm opacity-90 mt-2.5 font-medium">
                   {personalStats.count} gastos + {installments.length} parcelamentos
                 </p>
               </CardContent>
@@ -615,107 +661,115 @@ export default function DashboardPage() {
 
             <Card
               className={`bg-gradient-to-br ${
-                isNegative ? "from-orange-500 to-red-600" : "from-blue-500 to-indigo-600"
-              } text-white border-0 shadow-lg`}
+                isNegative ? "from-orange-500 via-red-500 to-rose-600" : "from-blue-500 via-indigo-600 to-purple-600"
+              } text-white border-0 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] duration-300`}
             >
               <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Saldo</CardTitle>
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <CardTitle className="text-sm font-semibold opacity-95">Saldo</CardTitle>
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                     {isNegative ? <TrendingDownIcon /> : <TrendingUpIcon />}
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(Math.abs(balance))}</div>
-                <p className="text-xs opacity-80 mt-2">{isNegative ? "Acima do orçamento" : "Disponível"}</p>
+                <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+                  {formatCurrency(Math.abs(balance))}
+                </div>
+                <p className="text-xs sm:text-sm opacity-90 mt-2.5 font-medium">
+                  {isNegative ? "Acima do orçamento" : "Disponível"}
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white border-0 shadow-lg">
+            <Card className="bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] duration-300">
               <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">% do Salário</CardTitle>
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <CardTitle className="text-sm font-semibold opacity-95">% do Salário</CardTitle>
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                     <HistoryIcon />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold font-mono">
+                <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
                   {totalSalary > 0 ? ((totalExpenses / totalSalary) * 100).toFixed(1) : "0"}%
                 </div>
-                <p className="text-xs opacity-80 mt-2">Utilizado do orçamento</p>
+                <p className="text-xs sm:text-sm opacity-90 mt-2.5 font-medium">Utilizado do orçamento</p>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
             <Card
-              className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02]"
+              className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] duration-300 cursor-pointer"
               onClick={() => setInstallmentsModalOpen(true)}
             >
               <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Parcelamentos Ativos</CardTitle>
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <CardTitle className="text-sm font-semibold opacity-95">Parcelamentos Ativos</CardTitle>
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                     <LayersIcon />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold font-mono">{activeInstallments.length}</div>
-                <p className="text-xs opacity-80 mt-2">Clique para ver detalhes</p>
+                <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+                  {activeInstallments.length}
+                </div>
+                <p className="text-xs sm:text-sm opacity-90 mt-2.5 font-medium">Clique para ver detalhes</p>
               </CardContent>
             </Card>
 
             <Card
-              className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02]"
+              className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] duration-300 cursor-pointer"
               onClick={() => setCategoriesModalOpen(true)}
             >
               <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Gastos por Categoria</CardTitle>
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <CardTitle className="text-sm font-semibold opacity-95">Gastos por Categoria</CardTitle>
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                     <PieChartIcon />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-bold font-mono">{categoryChartData.length}</div>
-                <p className="text-xs opacity-80 mt-2">Clique para ver detalhes</p>
+                <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+                  {categoryChartData.length}
+                </div>
+                <p className="text-xs sm:text-sm opacity-90 mt-2.5 font-medium">Clique para ver detalhes</p>
               </CardContent>
             </Card>
           </div>
 
           <Card
-            className="bg-gradient-to-br from-violet-500 to-purple-600 text-white border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02]"
+            className="bg-gradient-to-br from-violet-500 to-purple-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] duration-300 cursor-pointer"
             onClick={() => setExpenseDetailsOpen(true)}
           >
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm sm:text-base font-medium opacity-90">Gastos Recentes</CardTitle>
-                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/20 flex items-center justify-center">
+                <CardTitle className="text-sm font-semibold opacity-95">Gastos Recentes</CardTitle>
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                   <HistoryIcon />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl sm:text-3xl font-bold font-mono">{personalStats.count}</div>
-              <p className="text-xs sm:text-sm opacity-80 mt-2">Clique para ver histórico completo</p>
+              <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">{personalStats.count}</div>
+              <p className="text-xs sm:text-sm opacity-90 mt-2.5 font-medium">Clique para ver histórico completo</p>
             </CardContent>
           </Card>
 
           {isNegative && (
-            <Card className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300">
+            <Card className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 shadow-lg">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 shadow-md">
                     <TrendingDownIcon />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-red-900">Atenção: Gastos acima do salário!</h3>
-                    <p className="text-red-700 mt-1">
+                    <p className="text-red-700 mt-1.5">
                       Seus gastos ultrapassaram seu salário em <strong>{formatCurrency(Math.abs(balance))}</strong>.
                       Considere revisar seus gastos ou aumentar sua renda.
                     </p>
@@ -732,14 +786,14 @@ export default function DashboardPage() {
                   <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">
                     Histórico de Gastos (6 meses)
                   </CardTitle>
-                  <CardDescription className="text-sm sm:text-base mt-1">
+                  <CardDescription className="text-sm sm:text-base mt-1.5">
                     Distribuição dos gastos nos últimos 6 meses
                   </CardDescription>
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => setShowExpenseHistory(!showExpenseHistory)}
-                  className="font-semibold border-2 hover:bg-blue-50"
+                  className="font-semibold border-2 hover:bg-blue-50 transition-all"
                 >
                   {showExpenseHistory ? "Ocultar" : "Exibir"}
                 </Button>
@@ -749,7 +803,7 @@ export default function DashboardPage() {
               <CardContent>
                 {expenseHistory.every((item) => item.total === 0) ? (
                   <div className="text-center py-12 text-slate-500">
-                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 shadow-md">
                       <HistoryIcon />
                     </div>
                     <p className="text-base font-semibold">Nenhum dado disponível</p>
@@ -780,6 +834,7 @@ export default function DashboardPage() {
                             border: "2px solid #3b82f6",
                             borderRadius: "8px",
                             padding: "12px",
+                            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                           }}
                         />
                         <Legend
@@ -804,14 +859,14 @@ export default function DashboardPage() {
                   <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">
                     Gastos por Método de Pagamento
                   </CardTitle>
-                  <CardDescription className="text-sm sm:text-base mt-1">
+                  <CardDescription className="text-sm sm:text-base mt-1.5">
                     Distribuição dos gastos por forma de pagamento
                   </CardDescription>
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => setShowPaymentMethodChart(!showPaymentMethodChart)}
-                  className="font-semibold border-2 hover:bg-green-50"
+                  className="font-semibold border-2 hover:bg-green-50 transition-all"
                 >
                   {showPaymentMethodChart ? "Ocultar" : "Exibir"}
                 </Button>
@@ -821,7 +876,7 @@ export default function DashboardPage() {
               <CardContent>
                 {paymentMethodData.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">
-                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 shadow-md">
                       <CreditCardIcon />
                     </div>
                     <p className="text-base font-semibold">Nenhum dado disponível</p>
@@ -852,6 +907,7 @@ export default function DashboardPage() {
                             border: "2px solid #10b981",
                             borderRadius: "8px",
                             padding: "12px",
+                            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                           }}
                         />
                         <Legend
@@ -869,19 +925,19 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          <Card className="bg-white/80 backdrop-blur border-2 border-amber-200 shadow-lg">
+          <Card className="bg-white/90 backdrop-blur-sm border-2 border-amber-200 shadow-xl">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">Gastos por Categoria</CardTitle>
-                  <CardDescription className="text-sm sm:text-base mt-1">
-                    Distribuição dos gastos por categoria
+                  <CardDescription className="text-sm sm:text-base mt-1.5">
+                    Distribuição visual dos gastos por categoria
                   </CardDescription>
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => setShowCategoryChart(!showCategoryChart)}
-                  className="font-semibold border-2 hover:bg-amber-50"
+                  className="font-semibold border-2 hover:bg-amber-50 transition-all"
                 >
                   {showCategoryChart ? "Ocultar" : "Exibir"}
                 </Button>
@@ -891,7 +947,7 @@ export default function DashboardPage() {
               <CardContent>
                 {categoryChartData.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">
-                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 shadow-md">
                       <PieChartIcon />
                     </div>
                     <p className="text-base font-semibold">Nenhum dado disponível</p>
@@ -922,6 +978,7 @@ export default function DashboardPage() {
                             border: "2px solid #f59e0b",
                             borderRadius: "8px",
                             padding: "12px",
+                            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                           }}
                         />
                         <Legend
@@ -941,8 +998,121 @@ export default function DashboardPage() {
         </main>
       </div>
 
+      <Dialog open={categoryExpensesOpen} onOpenChange={setCategoryExpensesOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white via-amber-50/30 to-orange-50/30 border-2 border-amber-300 shadow-2xl">
+          <DialogHeader className="border-b-2 border-amber-200 pb-5 mb-6">
+            <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+              {selectedCategory && categoryLabels[selectedCategory as keyof typeof categoryLabels]}
+            </DialogTitle>
+            <DialogDescription className="text-slate-700 text-sm sm:text-base mt-2 font-medium">
+              Todos os gastos desta categoria no período selecionado
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-r from-amber-100 via-orange-100 to-amber-100 border-2 border-amber-300 shadow-lg">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-amber-200 shadow-md">
+                    <p className="text-xs sm:text-sm text-slate-600 font-bold uppercase tracking-wide mb-2">
+                      Total Gasto
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-bold font-mono text-amber-700">
+                      {formatCurrency(categoryExpenses.reduce((sum, e) => sum + e.amount, 0))}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-orange-200 shadow-md">
+                    <p className="text-xs sm:text-sm text-slate-600 font-bold uppercase tracking-wide mb-2">
+                      Nº de Gastos
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-bold font-mono text-orange-700">
+                      {categoryExpenses.length}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-amber-200 shadow-md">
+                    <p className="text-xs sm:text-sm text-slate-600 font-bold uppercase tracking-wide mb-2">
+                      Média por Gasto
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-bold font-mono text-amber-800">
+                      {formatCurrency(
+                        categoryExpenses.length > 0
+                          ? categoryExpenses.reduce((sum, e) => sum + e.amount, 0) / categoryExpenses.length
+                          : 0,
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-slate-300 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
+                <CardTitle className="text-lg sm:text-xl text-slate-900 font-bold">Lista de Gastos</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {categoryExpenses.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 shadow-md">
+                      <CreditCardIcon />
+                    </div>
+                    <p className="text-base font-semibold">Nenhum gasto encontrado</p>
+                    <p className="text-sm mt-2">Não há gastos nesta categoria para o período selecionado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {categoryExpenses
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((expense) => (
+                        <div
+                          key={expense.id}
+                          className="p-4 rounded-xl border-2 border-slate-200 hover:border-amber-300 hover:bg-amber-50/30 transition-all duration-200 hover:shadow-md"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-base sm:text-lg text-slate-900 truncate">
+                                {expense.description}
+                              </h4>
+                              <div className="flex flex-wrap items-center gap-2 mt-2">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 text-xs">
+                                  {new Date(expense.date).toLocaleDateString("pt-BR")}
+                                </Badge>
+                                {expense.paymentMethod && (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-green-50 text-green-700 border-green-300 text-xs"
+                                  >
+                                    {expense.paymentMethod}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-xl sm:text-2xl font-bold font-mono text-slate-900">
+                                {formatCurrency(expense.amount)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end pt-4">
+              <Button
+                onClick={() => setCategoryExpensesOpen(false)}
+                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold px-6 py-2 shadow-lg hover:shadow-xl transition-all"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={installmentsModalOpen} onOpenChange={setInstallmentsModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-cyan-50 border-2 border-cyan-200">
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-cyan-50 border-2 border-cyan-200 shadow-xl">
           <DialogHeader className="border-b-2 pb-4 mb-6">
             <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
               Parcelamentos Ativos
@@ -953,22 +1123,22 @@ export default function DashboardPage() {
           </DialogHeader>
 
           <div className="space-y-6">
-            <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-200">
+            <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-200 shadow-lg">
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total de Parcelamentos</p>
                     <p className="text-2xl sm:text-3xl font-bold font-mono text-cyan-600">
                       {activeInstallments.length}
                     </p>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Valor Total Mensal</p>
                     <p className="text-xl sm:text-3xl font-bold font-mono text-blue-600 break-words">
                       {formatCurrency(activeInstallments.reduce((sum, inst) => sum + inst.installmentAmount, 0))}
                     </p>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Valor Restante Total</p>
                     <p className="text-xl sm:text-3xl font-bold font-mono text-indigo-600 break-words">
                       {formatCurrency(activeInstallments.reduce((sum, inst) => sum + inst.remaining, 0))}
@@ -979,10 +1149,10 @@ export default function DashboardPage() {
             </Card>
 
             {activeInstallments.length === 0 ? (
-              <Card className="border-2 border-slate-200">
+              <Card className="border-2 border-slate-200 shadow-lg">
                 <CardContent className="py-12">
                   <div className="text-center text-slate-500">
-                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 shadow-md">
                       <CreditCardIcon />
                     </div>
                     <p className="text-base font-semibold">Nenhum parcelamento ativo no momento</p>
@@ -999,7 +1169,7 @@ export default function DashboardPage() {
                     onOpenChange={(open) => setInstallmentDialogOpen(open ? inst.id : null)}
                   >
                     <DialogTrigger asChild>
-                      <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 hover:border-cyan-400 hover:scale-[1.02] bg-white">
+                      <Card className="cursor-pointer hover:shadow-xl transition-all duration-200 border-2 hover:border-cyan-400 hover:scale-[1.02] bg-white">
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <h3 className="font-bold text-sm text-slate-900 line-clamp-2 flex-1 break-words overflow-hidden">
@@ -1057,7 +1227,7 @@ export default function DashboardPage() {
                       </Card>
                     </DialogTrigger>
 
-                    <DialogContent className="max-w-[95vw] sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50">
+                    <DialogContent className="max-w-[95vw] sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 shadow-xl">
                       <DialogHeader className="border-b-2 pb-4 mb-4">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0 overflow-hidden">
@@ -1093,7 +1263,7 @@ export default function DashboardPage() {
 
                       <div className="space-y-4 sm:space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300">
+                          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 shadow-sm">
                             <CardContent className="pt-4 pb-4">
                               <p className="text-xs text-blue-700 font-semibold uppercase tracking-wider mb-2">
                                 Valor da Parcela
@@ -1103,7 +1273,7 @@ export default function DashboardPage() {
                               </p>
                             </CardContent>
                           </Card>
-                          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300">
+                          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300 shadow-sm">
                             <CardContent className="pt-4 pb-4">
                               <p className="text-xs text-green-700 font-semibold uppercase tracking-wider mb-2">
                                 Valor Total
@@ -1115,7 +1285,7 @@ export default function DashboardPage() {
                               </p>
                             </CardContent>
                           </Card>
-                          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300">
+                          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300 shadow-sm">
                             <CardContent className="pt-4 pb-4">
                               <p className="text-xs text-purple-700 font-semibold uppercase tracking-wider mb-2">
                                 Data de Início
@@ -1125,7 +1295,7 @@ export default function DashboardPage() {
                               </p>
                             </CardContent>
                           </Card>
-                          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-300">
+                          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-300 shadow-sm">
                             <CardContent className="pt-4 pb-4">
                               <p className="text-xs text-orange-700 font-semibold uppercase tracking-wider mb-2">
                                 Categoria
@@ -1138,9 +1308,9 @@ export default function DashboardPage() {
                         </div>
 
                         {!inst.isIndefinite && (
-                          <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-300">
+                          <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-300 shadow-sm">
                             <CardContent className="pt-4 pb-4 space-y-3">
-                              <div className="flex items-center justify-between">
+                              <div className="flex justify-between items-center">
                                 <h4 className="font-bold text-sm sm:text-base lg:text-lg text-indigo-900">
                                   Progresso Geral
                                 </h4>
@@ -1161,7 +1331,7 @@ export default function DashboardPage() {
                           </Card>
                         )}
 
-                        <Card className="border-2 border-slate-300">
+                        <Card className="border-2 border-slate-300 shadow-md">
                           <CardHeader className="bg-slate-100 pb-4">
                             <h4 className="font-bold text-sm sm:text-base lg:text-lg text-slate-900">
                               Controle de Parcelas
@@ -1174,7 +1344,7 @@ export default function DashboardPage() {
                             <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3 max-h-60 overflow-y-auto p-2">
                               {inst.isIndefinite ? (
                                 <div className="col-span-4 sm:col-span-6 lg:col-span-8 text-center py-8 sm:py-12 bg-purple-50 rounded-xl border-2 border-purple-200">
-                                  <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
+                                  <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3 shadow-md">
                                     <CreditCardIcon />
                                   </div>
                                   <p className="font-semibold text-purple-900 text-sm sm:text-base lg:text-lg">
@@ -1208,7 +1378,7 @@ export default function DashboardPage() {
                           </CardContent>
                         </Card>
 
-                        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300">
+                        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300 shadow-sm">
                           <CardContent className="pt-4 pb-4 space-y-3">
                             <div className="flex justify-between items-center py-3 border-b-2 border-slate-300">
                               <span className="text-slate-700 font-semibold text-xs sm:text-sm lg:text-base">
@@ -1241,7 +1411,7 @@ export default function DashboardPage() {
               <Button
                 onClick={() => setInstallmentsModalOpen(false)}
                 variant="outline"
-                className="border-2 border-slate-300 hover:bg-slate-100"
+                className="border-2 border-slate-300 hover:bg-slate-100 font-semibold"
               >
                 Fechar
               </Button>
@@ -1251,33 +1421,33 @@ export default function DashboardPage() {
       </Dialog>
 
       <Dialog open={categoriesModalOpen} onOpenChange={setCategoriesModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-amber-50 border-2 border-amber-200">
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-amber-50 border-2 border-amber-200 shadow-xl">
           <DialogHeader className="border-b-2 pb-4 mb-6">
             <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
               Gastos por Categoria
             </DialogTitle>
             <DialogDescription className="text-slate-600 text-sm sm:text-base mt-2">
-              Análise detalhada dos seus gastos organizados por categoria
+              Clique em uma categoria para ver os gastos detalhados
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
-            <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
+            <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total de Categorias</p>
                     <p className="text-2xl sm:text-3xl font-bold font-mono text-amber-600">
                       {categoryChartData.length}
                     </p>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total Gasto</p>
                     <p className="text-xl sm:text-3xl font-bold font-mono text-orange-600 break-words">
                       {formatCurrency(personalStats.total)}
                     </p>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300 overflow-hidden">
+                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300 overflow-hidden shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Categoria Principal</p>
                     <p className="text-base sm:text-xl font-bold text-amber-900 truncate">
                       {categoryChartData.length > 0 ? categoryChartData[0].name : "N/A"}
@@ -1288,10 +1458,10 @@ export default function DashboardPage() {
             </Card>
 
             {categoryChartData.length === 0 ? (
-              <Card className="border-2 border-slate-200">
+              <Card className="border-2 border-slate-200 shadow-lg">
                 <CardContent className="py-12">
                   <div className="text-center text-slate-500">
-                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 shadow-md">
                       <PieChartIcon />
                     </div>
                     <p className="text-base font-semibold">Nenhum dado disponível</p>
@@ -1300,43 +1470,66 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             ) : (
-              <Card className="border-2 border-slate-200">
+              <Card className="border-2 border-slate-200 shadow-lg">
                 <CardHeader className="bg-slate-50">
-                  <CardTitle className="text-lg sm:text-xl text-slate-900">Distribuição por Categoria</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl text-slate-900 font-bold">
+                    Clique para Ver Detalhes
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-6 space-y-6">
-                  {categoryChartData.map((item, index) => (
-                    <div key={index} className="space-y-3">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+                <CardContent className="pt-6 space-y-4">
+                  {categoryChartData.map((item, index) => {
+                    const categoryKey = Object.keys(categoryLabels).find(
+                      (key) => categoryLabels[key as keyof typeof categoryLabels] === item.name,
+                    )
+                    const expensesInCategory = personalExpenses.filter((e) => e.category === categoryKey).length
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          if (categoryKey) {
+                            handleCategoryClick(categoryKey)
+                            setCategoriesModalOpen(false)
+                          }
+                        }}
+                        className="w-full space-y-3 p-4 rounded-xl border-2 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50 transition-all duration-200 hover:shadow-lg group"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div
+                              className="h-5 w-5 rounded-lg shadow-md border-2 border-white flex-shrink-0 group-hover:scale-110 transition-transform"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <div className="text-left flex-1 min-w-0">
+                              <span className="font-bold text-base sm:text-lg text-slate-800 block truncate">
+                                {item.name}
+                              </span>
+                              <span className="text-xs text-slate-500 font-medium">
+                                {expensesInCategory} {expensesInCategory === 1 ? "gasto" : "gastos"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+                            <span className="text-sm sm:text-base text-slate-600 font-semibold bg-slate-100 px-3 py-1 rounded-lg">
+                              {item.percentage.toFixed(1)}%
+                            </span>
+                            <span className="font-mono font-bold text-lg sm:text-xl text-slate-900">
+                              {formatCurrency(item.value)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
                           <div
-                            className="h-4 w-4 rounded-full shadow-md border-2 border-white flex-shrink-0"
-                            style={{ backgroundColor: item.color }}
+                            className="h-full rounded-full transition-all duration-500 shadow-sm group-hover:shadow-md"
+                            style={{
+                              width: `${item.percentage}%`,
+                              background: `linear-gradient(90deg, ${item.color}, ${item.color}dd)`,
+                            }}
                           />
-                          <span className="font-semibold text-sm sm:text-base text-slate-700 truncate">
-                            {item.name}
-                          </span>
                         </div>
-                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                          <span className="text-xs sm:text-sm text-slate-500 font-medium">
-                            {item.percentage.toFixed(1)}%
-                          </span>
-                          <span className="font-mono font-bold text-base sm:text-lg text-slate-800 break-words">
-                            {formatCurrency(item.value)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="h-4 bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                        <div
-                          className="h-full rounded-full transition-all duration-500 shadow-sm"
-                          style={{
-                            width: `${item.percentage}%`,
-                            background: `linear-gradient(90deg, ${item.color}, ${item.color}dd)`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                      </button>
+                    )
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -1345,7 +1538,7 @@ export default function DashboardPage() {
               <Button
                 onClick={() => setCategoriesModalOpen(false)}
                 variant="outline"
-                className="border-2 border-slate-300 hover:bg-slate-100"
+                className="border-2 border-slate-300 hover:bg-slate-100 font-semibold"
               >
                 Fechar
               </Button>
@@ -1355,7 +1548,7 @@ export default function DashboardPage() {
       </Dialog>
 
       <Dialog open={expenseDetailsOpen} onOpenChange={setExpenseDetailsOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 border-2 border-blue-200">
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 border-2 border-blue-200 shadow-xl">
           <DialogHeader className="border-b-2 pb-4 mb-6">
             <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Histórico Completo de Gastos
@@ -1366,20 +1559,20 @@ export default function DashboardPage() {
           </DialogHeader>
 
           <div className="space-y-6">
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg">
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total de Gastos</p>
                     <p className="text-xl sm:text-3xl font-bold font-mono text-blue-600 break-words">
                       {formatCurrency(personalStats.total)}
                     </p>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Número de Transações</p>
                     <p className="text-2xl sm:text-3xl font-bold font-mono text-indigo-600">{personalStats.count}</p>
                   </div>
-                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300">
+                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300 shadow-md">
                     <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Média por Gasto</p>
                     <p className="text-xl sm:text-3xl font-bold font-mono text-purple-600 break-words">
                       {formatCurrency(personalStats.count > 0 ? personalStats.total / personalStats.count : 0)}
@@ -1389,9 +1582,9 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-slate-200">
+            <Card className="border-2 border-slate-200 shadow-lg">
               <CardHeader className="bg-slate-50">
-                <CardTitle className="text-lg sm:text-xl text-slate-900">Lista Detalhada de Gastos</CardTitle>
+                <CardTitle className="text-lg sm:text-xl text-slate-900 font-bold">Lista Detalhada de Gastos</CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
                 <ExpenseList type="personal" dateRange={formattedRange} limit={undefined} />
@@ -1402,7 +1595,7 @@ export default function DashboardPage() {
               <Button
                 onClick={() => setExpenseDetailsOpen(false)}
                 variant="outline"
-                className="border-2 border-slate-300 hover:bg-slate-100"
+                className="border-2 border-slate-300 hover:bg-slate-100 font-semibold"
               >
                 Fechar
               </Button>
@@ -1412,9 +1605,9 @@ export default function DashboardPage() {
       </Dialog>
 
       <AlertDialog open={!!deletingInstallment} onOpenChange={(open) => !open && setDeletingInstallment(null)}>
-        <AlertDialogContent className="max-w-[95vw] sm:max-w-md bg-gradient-to-br from-white to-red-50 border-2 border-red-300">
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-md bg-gradient-to-br from-white to-red-50 border-2 border-red-300 shadow-xl">
           <AlertDialogHeader className="space-y-4">
-            <div className="h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+            <div className="h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mx-auto shadow-lg">
               <TrashIcon />
             </div>
             <AlertDialogTitle className="text-xl sm:text-2xl font-bold text-center text-red-900">

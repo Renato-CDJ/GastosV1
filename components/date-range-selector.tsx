@@ -33,6 +33,19 @@ interface DateRangeSelectorProps {
 export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
   const [open, setOpen] = useState(false)
 
+  const selectMonth = (monthOffset: number) => {
+    const now = new Date()
+    const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
+    const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+    const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+
+    onChange({
+      from: startOfMonth,
+      to: endOfMonth,
+    })
+    setOpen(false)
+  }
+
   const formatDateRange = (range?: DateRange) => {
     if (!range?.from) return "Selecione o período"
     if (!range.to) {
@@ -96,8 +109,39 @@ export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
       <PopoverContent className="w-auto p-0 border-slate-200 shadow-xl rounded-2xl overflow-hidden" align="start">
         <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
           <h3 className="font-semibold text-slate-900 text-base">Selecione o Período</h3>
-          <p className="text-xs text-slate-500 mt-1">Escolha as datas de início e fim</p>
+          <p className="text-xs text-slate-500 mt-1">Escolha as datas de início e fim ou selecione um mês</p>
         </div>
+
+        <div className="bg-white border-b border-slate-200 px-4 py-3">
+          <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Seleção Rápida</p>
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => selectMonth(-1)}
+              className="text-xs font-medium hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all"
+            >
+              Mês Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => selectMonth(0)}
+              className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 hover:border-blue-400 transition-all"
+            >
+              Mês Atual
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => selectMonth(1)}
+              className="text-xs font-medium hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all"
+            >
+              Próximo Mês
+            </Button>
+          </div>
+        </div>
+
         <div className="p-4 bg-white">
           <Calendar
             mode="range"

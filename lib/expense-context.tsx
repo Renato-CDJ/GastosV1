@@ -476,10 +476,32 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const expenseDate = new Date(expense.date)
         const start = new Date(startDate)
         const end = new Date(endDate)
-        const matchesDate = expenseDate >= start && expenseDate <= end
         const matchesType = type ? expense.type === type : true
 
-        return matchesDate && matchesType
+        if (!matchesType) return false
+
+        // For non-recurring expenses, only show in the month they were added
+        if (!expense.isRecurring) {
+          const matchesDate = expenseDate >= start && expenseDate <= end
+          return matchesDate
+        }
+
+        // For recurring expenses, show in all months from start date until end date (or recurringEndDate)
+        if (expense.isRecurring) {
+          // Check if the expense has started by the end of the range
+          if (expenseDate > end) return false
+
+          // Check if the expense has ended before the start of the range
+          if (expense.recurringEndDate) {
+            const recurringEnd = new Date(expense.recurringEndDate)
+            if (recurringEnd < start) return false
+          }
+
+          // If we're here, the recurring expense overlaps with the date range
+          return true
+        }
+
+        return false
       })
     },
     [expenses],

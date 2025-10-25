@@ -99,23 +99,23 @@ export default function Home() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+        <header className="bg-white border-b border-slate-200 shadow-sm">
           <div className="container mx-auto px-6 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold">Controle Financeiro</h1>
-                <p className="text-blue-100 mt-1 text-sm">Gerencie suas finanças com clareza</p>
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Controle Financeiro</h1>
+                <p className="text-slate-600 mt-1 text-sm font-medium">Gerencie suas finanças com clareza</p>
               </div>
               <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-xs text-blue-200 uppercase tracking-wide">Usuário</p>
-                  <p className="font-semibold">{currentUser?.displayName}</p>
+                <div className="text-right bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Usuário</p>
+                  <p className="font-semibold text-slate-900">{currentUser?.displayName}</p>
                 </div>
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                  className="border-slate-300 hover:bg-slate-50 text-slate-700 bg-transparent"
                 >
                   Sair
                 </Button>
@@ -128,69 +128,73 @@ export default function Home() {
         <main className="container mx-auto px-6 py-12 space-y-16">
           <FirebaseConfigAlert />
 
-          <div className="max-w-3xl mx-auto space-y-10">
+          <div className="max-w-4xl mx-auto space-y-10">
             <div className="text-center space-y-4">
-              <h2 className="text-4xl font-bold text-gray-900 text-balance">Dashboard Financeiro Completo</h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto text-pretty">
+              <h2 className="text-5xl font-bold text-slate-900 text-balance leading-tight">
+                Dashboard Financeiro Completo
+              </h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto text-pretty leading-relaxed">
                 Acesse seu dashboard interativo com visão completa de gastos, parcelamentos e histórico financeiro
               </p>
             </div>
 
             <Link href="/dashboard" className="block group">
-              <Card className="border-2 border-purple-200 hover:border-purple-500 transition-all duration-300 hover:shadow-xl bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50">
-                <CardHeader className="space-y-4">
+              <Card className="border-2 border-slate-200 hover:border-primary transition-all duration-300 hover:shadow-2xl bg-white overflow-hidden">
+                <CardHeader className="space-y-6 bg-gradient-to-br from-slate-50 to-white">
                   <div className="flex items-center justify-between">
-                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                    <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg">
                       <BarChartIcon />
                     </div>
-                    <div className="group-hover:translate-x-2 transition-transform text-gray-400 group-hover:text-purple-600">
+                    <div className="group-hover:translate-x-2 transition-transform text-slate-400 group-hover:text-primary">
                       <ArrowRightIcon />
                     </div>
                   </div>
                   <div>
-                    <CardTitle className="text-3xl text-gray-900">Dashboard Financeiro</CardTitle>
-                    <CardDescription className="text-gray-600 mt-2 text-base">
+                    <CardTitle className="text-3xl text-slate-900 font-bold">Dashboard Financeiro</CardTitle>
+                    <CardDescription className="text-slate-600 mt-2 text-base font-medium">
                       Visão completa e interativa das suas finanças
                     </CardDescription>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pt-6">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2 p-4 bg-white/60 rounded-lg">
-                      <p className="text-sm text-gray-600">Gastos do Mês</p>
-                      <p className="text-2xl font-bold font-mono text-gray-900">
+                    <div className="space-y-2 p-5 bg-slate-50 rounded-xl border border-slate-200">
+                      <p className="text-sm text-slate-600 font-semibold">Gastos do Mês</p>
+                      <p className="text-2xl font-bold font-mono text-slate-900">
                         {formatCurrency(personalStats.total)}
                       </p>
-                      <p className="text-xs text-gray-500">{personalStats.count} transações</p>
+                      <p className="text-xs text-slate-500 font-medium">{personalStats.count} transações</p>
                     </div>
-                    <div className="space-y-2 p-4 bg-white/60 rounded-lg">
-                      <p className="text-sm text-gray-600">Parcelamentos</p>
-                      <p className="text-2xl font-bold font-mono text-gray-900">{activeInstallmentsCount}</p>
-                      <p className="text-xs text-gray-500">ativos</p>
+                    <div className="space-y-2 p-5 bg-slate-50 rounded-xl border border-slate-200">
+                      <p className="text-sm text-slate-600 font-semibold">Parcelamentos</p>
+                      <p className="text-2xl font-bold font-mono text-slate-900">{activeInstallmentsCount}</p>
+                      <p className="text-xs text-slate-500 font-medium">ativos</p>
                     </div>
                   </div>
 
-                  <div className="space-y-3 p-4 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg">
+                  <div className="space-y-3 p-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-purple-900">Recursos Disponíveis</span>
-                      <span className="text-xs font-semibold text-purple-600 bg-white px-2 py-1 rounded">NOVO</span>
+                      <span className="text-sm font-bold text-slate-900">Recursos Disponíveis</span>
+                      <span className="text-xs font-bold text-primary bg-white px-2.5 py-1 rounded-full shadow-sm">
+                        NOVO
+                      </span>
                     </div>
-                    <ul className="space-y-2 text-sm text-purple-800">
-                      <li className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
-                        Acompanhamento de parcelamentos com barras de progresso
+                    <ul className="space-y-2.5 text-sm text-slate-700">
+                      <li className="flex items-center gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                        <span className="font-medium">Acompanhamento de parcelamentos com barras de progresso</span>
                       </li>
-                      <li className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
-                        Histórico de gastos dos últimos 6 meses
+                      <li className="flex items-center gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                        <span className="font-medium">Histórico de gastos dos últimos 6 meses</span>
                       </li>
-                      <li className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
-                        Análise de saldo e alertas de orçamento
+                      <li className="flex items-center gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                        <span className="font-medium">Análise de saldo e alertas de orçamento</span>
                       </li>
-                      <li className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-purple-600" />
-                        Gráficos interativos por categoria
+                      <li className="flex items-center gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                        <span className="font-medium">Gráficos interativos por categoria</span>
                       </li>
                     </ul>
                   </div>

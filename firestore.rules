@@ -59,10 +59,13 @@ service cloud.firestore {
       // Users can only read their own salary records
       allow read, list: if isAuthenticated() && resource.data.userId == request.auth.uid;
       
-      // Users can only create salary with their own userId
-      allow write: if isAuthenticated() && 
+      // Users can only create/update salary with their own userId
+      allow create, update: if isAuthenticated() && 
                       request.resource.data.userId == request.auth.uid &&
                       request.resource.data.type == "personal";
+      
+      // Users can delete their own salary records
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
     
   }

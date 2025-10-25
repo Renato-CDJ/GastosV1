@@ -75,7 +75,7 @@ export function UnifiedExpenseDialog({
   editingInstallment,
   onInstallmentEditComplete,
 }: UnifiedExpenseDialogProps) {
-  const { addExpense, addInstallment, updateInstallment } = useExpenses()
+  const { addExpense, addInstallment, updateInstallment, categories } = useExpenses()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"simple" | "installment">("simple")
@@ -316,12 +316,10 @@ export function UnifiedExpenseDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button
-          size="lg"
-          className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
-        >
+        <Button className="bg-white/10 hover:bg-white/20 border-2 border-white/30 text-white backdrop-blur-sm transition-all hover:scale-105 shadow-lg font-semibold h-11 sm:h-12 px-4 sm:px-5 rounded-xl gap-2">
           <PlusIcon />
-          <span>Adicionar Gasto</span>
+          <span className="hidden sm:inline">Adicionar Gasto</span>
+          <span className="sm:hidden">Adicionar</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-blue-50 border-2 border-blue-200">
@@ -402,9 +400,9 @@ export function UnifiedExpenseDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {Object.entries(categoryLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key} className="focus:bg-blue-50">
-                        {label}
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category} className="focus:bg-blue-50">
+                        {categoryLabels[category as keyof typeof categoryLabels] || category}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -740,9 +738,9 @@ export function UnifiedExpenseDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {Object.entries(categoryLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key} className="focus:bg-blue-50">
-                        {label}
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category} className="focus:bg-blue-50">
+                        {categoryLabels[category as keyof typeof categoryLabels] || category}
                       </SelectItem>
                     ))}
                   </SelectContent>

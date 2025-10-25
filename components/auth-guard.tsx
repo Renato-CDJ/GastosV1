@@ -16,6 +16,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       console.log("[v0] AuthGuard - Redirecting to login")
       router.push("/login")
     }
+    if (!loading && isAuthenticated && window.location.pathname === "/") {
+      console.log("[v0] AuthGuard - Redirecting authenticated user to dashboard")
+      router.push("/dashboard")
+    }
   }, [isAuthenticated, loading, router])
 
   if (loading) {
