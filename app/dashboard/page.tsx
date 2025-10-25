@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { UnifiedExpenseDialog } from "@/components/unified-expense-dialog"
 import { useExpenses } from "@/lib/expense-context"
-import { calculateStats, formatCurrency, getCurrentMonthRange } from "@/lib/expense-utils"
+import {
+  calculateStats,
+  formatCurrency,
+  getCurrentMonthRange,
+  categoryLabels,
+  categoryColors,
+} from "@/lib/expense-utils"
 import Link from "next/link"
 import { AuthGuard } from "@/components/auth-guard"
 import { useUser } from "@/lib/user-context"
@@ -13,7 +19,6 @@ import { useRouter } from "next/navigation"
 import { DateRangeSelector } from "@/components/date-range-selector"
 import type { DateRange } from "react-day-picker"
 import { ExpenseList } from "@/components/expense-list"
-import { CategoryChart } from "@/components/category-chart"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -33,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
 
 const ArrowLeftIcon = () => (
   <svg
@@ -101,6 +107,21 @@ const EditIcon = () => (
   </svg>
 )
 
+const PieChartIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+    <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+  </svg>
+)
+
+const LayersIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+    <polyline points="2 17 12 22 22 17"></polyline>
+    <polyline points="2 12 12 17 22 12"></polyline>
+  </svg>
+)
+
 export default function DashboardPage() {
   const {
     getExpensesByDateRange,
@@ -132,6 +153,11 @@ export default function DashboardPage() {
   const [editingInstallmentData, setEditingInstallmentData] = useState<any>(null)
   const [deletingInstallment, setDeletingInstallment] = useState<string | null>(null)
   const [installmentDialogOpen, setInstallmentDialogOpen] = useState<string | null>(null)
+  const [expenseDetailsOpen, setExpenseDetailsOpen] = useState(false)
+  const [installmentsModalOpen, setInstallmentsModalOpen] = useState(false)
+  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false)
+  const [showPaymentMethodChart, setShowPaymentMethodChart] = useState(true)
+  const [showCategoryChart, setShowCategoryChart] = useState(true)
 
   const formattedRange =
     dateRange?.from && dateRange?.to
@@ -228,6 +254,46 @@ export default function DashboardPage() {
     })
   }, [installments])
 
+  const categoryChartData = useMemo(() => {
+    return Object.entries(personalStats.byCategory)
+      .filter(([, value]) => value > 0)
+      .map(([category, value]) => ({
+        name: categoryLabels[category as keyof typeof categoryLabels],
+        value: value,
+        color: categoryColors[category as keyof typeof categoryColors],
+        percentage: (value / personalStats.total) * 100,
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [personalStats])
+
+  const paymentMethodData = useMemo(() => {
+    const methodTotals: Record<string, number> = {}
+
+    personalExpenses.forEach((expense) => {
+      const method = expense.paymentMethod || "Não especificado"
+      methodTotals[method] = (methodTotals[method] || 0) + expense.amount
+    })
+
+    const methodColors: Record<string, string> = {
+      Dinheiro: "#10b981",
+      "Cartão de Crédito": "#3b82f6",
+      "Cartão de Débito": "#8b5cf6",
+      PIX: "#06b6d4",
+      Transferência: "#f59e0b",
+      "Não especificado": "#6b7280",
+    }
+
+    return Object.entries(methodTotals)
+      .filter(([, value]) => value > 0)
+      .map(([method, value]) => ({
+        name: method,
+        value: value,
+        color: methodColors[method] || "#6b7280",
+        percentage: (value / personalStats.total) * 100,
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [personalExpenses, personalStats.total])
+
   const handleSalarySubmit = () => {
     const amount = Number.parseFloat(salaryForm.amount)
     if (!salaryForm.description || amount <= 0) {
@@ -279,6 +345,7 @@ export default function DashboardPage() {
     if (installment) {
       setEditingInstallmentData(installment)
       setInstallmentDialogOpen(null)
+      setInstallmentsModalOpen(false)
     }
   }
 
@@ -583,6 +650,62 @@ export default function DashboardPage() {
             </Card>
           </div>
 
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
+            <Card
+              className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02]"
+              onClick={() => setInstallmentsModalOpen(true)}
+            >
+              <CardHeader className="pb-2 sm:pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Parcelamentos Ativos</CardTitle>
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <LayersIcon />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl sm:text-3xl font-bold font-mono">{activeInstallments.length}</div>
+                <p className="text-xs opacity-80 mt-2">Clique para ver detalhes</p>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02]"
+              onClick={() => setCategoriesModalOpen(true)}
+            >
+              <CardHeader className="pb-2 sm:pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs sm:text-sm font-medium opacity-90">Gastos por Categoria</CardTitle>
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <PieChartIcon />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl sm:text-3xl font-bold font-mono">{categoryChartData.length}</div>
+                <p className="text-xs opacity-80 mt-2">Clique para ver detalhes</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card
+            className="bg-gradient-to-br from-violet-500 to-purple-600 text-white border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.02]"
+            onClick={() => setExpenseDetailsOpen(true)}
+          >
+            <CardHeader className="pb-2 sm:pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm sm:text-base font-medium opacity-90">Gastos Recentes</CardTitle>
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <HistoryIcon />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl sm:text-3xl font-bold font-mono">{personalStats.count}</div>
+              <p className="text-xs sm:text-sm opacity-80 mt-2">Clique para ver histórico completo</p>
+            </CardContent>
+          </Card>
+
           {isNegative && (
             <Card className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300">
               <CardContent className="pt-6">
@@ -602,287 +725,21 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          <Card className="bg-white/80 backdrop-blur border-2 border-blue-200">
+          <Card className="bg-white/80 backdrop-blur border-2 border-blue-200 shadow-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-bold text-slate-900">Parcelamentos Ativos</CardTitle>
-                  <CardDescription className="text-yellow-100 font-medium text-sm sm:text-base">
-                    {activeInstallments.length}{" "}
-                    {activeInstallments.length === 1 ? "parcelamento ativo" : "parcelamentos ativos"}
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">
+                    Histórico de Gastos (6 meses)
+                  </CardTitle>
+                  <CardDescription className="text-sm sm:text-base mt-1">
+                    Distribuição dos gastos nos últimos 6 meses
                   </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6 sm:pt-8">
-              {activeInstallments.length === 0 ? (
-                <div className="text-center py-12 sm:py-16 text-slate-500">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <CreditCardIcon />
-                  </div>
-                  <p className="text-base sm:text-lg font-semibold">Nenhum parcelamento ativo no momento</p>
-                  <p className="text-xs sm:text-sm mt-2">Adicione um novo gasto parcelado para começar</p>
-                </div>
-              ) : (
-                <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                  {activeInstallments.map((inst) => (
-                    <Dialog
-                      key={inst.id}
-                      open={installmentDialogOpen === inst.id}
-                      onOpenChange={(open) => setInstallmentDialogOpen(open ? inst.id : null)}
-                    >
-                      <DialogTrigger asChild>
-                        <Card className="cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-yellow-400 hover:scale-[1.02] bg-white h-full">
-                          <CardHeader className="pb-2 sm:pb-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <CardTitle className="text-xs sm:text-sm font-medium text-slate-600">
-                                {inst.category}
-                              </CardTitle>
-                              <div className="flex gap-1">
-                                {inst.isRecurring && (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-blue-100 text-blue-700 border-blue-400 text-[10px] px-1.5 py-0"
-                                  >
-                                    Rec
-                                  </Badge>
-                                )}
-                                {inst.isIndefinite && (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-purple-100 text-purple-700 border-purple-400 text-[10px] px-1.5 py-0"
-                                  >
-                                    Ind
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              <h3 className="font-bold text-base sm:text-lg text-slate-900 line-clamp-2 min-h-[3rem]">
-                                {inst.description}
-                              </h3>
-                              <div className="text-2xl sm:text-3xl font-bold font-mono text-slate-900">
-                                {formatCurrency(inst.installmentAmount)}
-                              </div>
-                              <p className="text-xs text-slate-600">por mês</p>
-
-                              {!inst.isIndefinite && (
-                                <div className="space-y-2 pt-2">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="text-slate-600">
-                                      {inst.paidCount}/{inst.totalCount}
-                                    </span>
-                                    <span className="font-bold text-blue-600">{inst.progress.toFixed(0)}%</span>
-                                  </div>
-                                  <div className="relative h-2 bg-slate-200 rounded-full overflow-hidden">
-                                    <div
-                                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-all duration-500"
-                                      style={{ width: `${inst.progress}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-
-                              {inst.isIndefinite && (
-                                <div className="flex items-center justify-between bg-purple-50 px-3 py-2 rounded-lg border border-purple-200 mt-2">
-                                  <span className="text-xs text-slate-700">Pagas</span>
-                                  <span className="font-bold text-lg font-mono text-purple-600">{inst.paidCount}</span>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </DialogTrigger>
-
-                      <DialogContent className="max-w-[95vw] sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50">
-                        <DialogHeader className="border-b-2 pb-4 mb-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <DialogTitle className="text-xl sm:text-2xl font-bold text-slate-900 break-words">
-                                {inst.description}
-                              </DialogTitle>
-                              <DialogDescription className="text-sm text-slate-600 font-medium mt-2">
-                                Detalhes completos do parcelamento
-                              </DialogDescription>
-                            </div>
-                            <div className="flex gap-2 flex-shrink-0">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                onClick={() => handleEditInstallment(inst.id)}
-                                className="h-10 w-10 border-2 border-blue-300 hover:bg-blue-50 hover:border-blue-500 text-blue-600 hover:text-blue-700 transition-all shadow-sm hover:shadow-md"
-                                title="Editar parcelamento"
-                              >
-                                <EditIcon />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                onClick={() => setDeletingInstallment(inst.id)}
-                                className="h-10 w-10 border-2 border-red-300 hover:bg-red-50 hover:border-red-500 text-red-600 hover:text-red-700 transition-all shadow-sm hover:shadow-md"
-                                title="Excluir parcelamento"
-                              >
-                                <TrashIcon />
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogHeader>
-
-                        <div className="space-y-4 sm:space-y-6">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300">
-                              <CardContent className="pt-4 pb-4">
-                                <p className="text-xs text-blue-700 font-semibold uppercase tracking-wider mb-2">
-                                  Valor da Parcela
-                                </p>
-                                <p className="text-lg sm:text-xl font-bold font-mono text-blue-900 break-words">
-                                  {formatCurrency(inst.installmentAmount)}
-                                </p>
-                              </CardContent>
-                            </Card>
-                            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300">
-                              <CardContent className="pt-4 pb-4">
-                                <p className="text-xs text-green-700 font-semibold uppercase tracking-wider mb-2">
-                                  Valor Total
-                                </p>
-                                <p className="text-lg sm:text-xl font-bold font-mono text-green-900 break-words">
-                                  {inst.isIndefinite
-                                    ? "Indeterminado"
-                                    : formatCurrency(inst.installmentAmount * inst.totalCount)}
-                                </p>
-                              </CardContent>
-                            </Card>
-                            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300">
-                              <CardContent className="pt-4 pb-4">
-                                <p className="text-xs text-purple-700 font-semibold uppercase tracking-wider mb-2">
-                                  Data de Início
-                                </p>
-                                <p className="text-base sm:text-lg font-bold text-purple-900">
-                                  {new Date(inst.startDate).toLocaleDateString("pt-BR")}
-                                </p>
-                              </CardContent>
-                            </Card>
-                            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-300">
-                              <CardContent className="pt-4 pb-4">
-                                <p className="text-xs text-orange-700 font-semibold uppercase tracking-wider mb-2">
-                                  Categoria
-                                </p>
-                                <p className="text-base sm:text-lg font-bold text-orange-900 capitalize break-words">
-                                  {inst.category}
-                                </p>
-                              </CardContent>
-                            </Card>
-                          </div>
-
-                          {!inst.isIndefinite && (
-                            <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-300">
-                              <CardContent className="pt-4 pb-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="font-bold text-base sm:text-lg text-indigo-900">Progresso Geral</h4>
-                                  <span className="text-2xl sm:text-3xl font-bold text-indigo-600">
-                                    {inst.progress.toFixed(0)}%
-                                  </span>
-                                </div>
-                                <div className="relative h-6 bg-indigo-200 rounded-full overflow-hidden shadow-inner">
-                                  <div
-                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-all duration-500 shadow-md"
-                                    style={{ width: `${inst.progress}%` }}
-                                  />
-                                </div>
-                                <p className="text-sm text-indigo-700 font-semibold">
-                                  {inst.paidCount} de {inst.totalCount} parcelas pagas
-                                </p>
-                              </CardContent>
-                            </Card>
-                          )}
-
-                          <Card className="border-2 border-slate-300">
-                            <CardHeader className="bg-slate-100 pb-4">
-                              <h4 className="font-bold text-base sm:text-lg text-slate-900">Controle de Parcelas</h4>
-                              <p className="text-xs sm:text-sm text-slate-600 mt-2">
-                                Clique nos números para marcar/desmarcar como pago
-                              </p>
-                            </CardHeader>
-                            <CardContent className="pt-4">
-                              <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3 max-h-60 overflow-y-auto p-2">
-                                {inst.isIndefinite ? (
-                                  <div className="col-span-4 sm:col-span-6 lg:col-span-8 text-center py-8 sm:py-12 bg-purple-50 rounded-xl border-2 border-purple-200">
-                                    <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
-                                      <CreditCardIcon />
-                                    </div>
-                                    <p className="font-semibold text-purple-900 text-base sm:text-lg">
-                                      Parcelamento indeterminado
-                                    </p>
-                                    <p className="text-sm mt-2 text-purple-700 font-medium">
-                                      {inst.paidCount} parcelas pagas
-                                    </p>
-                                  </div>
-                                ) : (
-                                  Array.from({ length: inst.totalCount }, (_, i) => i + 1).map((num) => {
-                                    const isPaid = inst.paidInstallments.includes(num)
-                                    return (
-                                      <Button
-                                        key={num}
-                                        variant={isPaid ? "default" : "outline"}
-                                        size="lg"
-                                        onClick={() => markInstallmentAsPaid(inst.id, num)}
-                                        className={`font-bold text-sm h-12 ${
-                                          isPaid
-                                            ? "bg-green-600 hover:bg-green-700 shadow-md"
-                                            : "hover:bg-slate-100 hover:border-slate-400"
-                                        }`}
-                                      >
-                                        {num}
-                                      </Button>
-                                    )
-                                  })
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300">
-                            <CardContent className="pt-4 pb-4 space-y-3">
-                              <div className="flex justify-between items-center py-3 border-b-2 border-slate-300">
-                                <span className="text-slate-700 font-semibold text-sm sm:text-base">Valor Pago</span>
-                                <span className="font-bold font-mono text-lg sm:text-xl text-green-600 break-words">
-                                  {formatCurrency(inst.paidCount * inst.installmentAmount)}
-                                </span>
-                              </div>
-                              {!inst.isIndefinite && (
-                                <div className="flex justify-between items-center py-3">
-                                  <span className="text-slate-700 font-semibold text-sm sm:text-base">
-                                    Valor Restante
-                                  </span>
-                                  <span className="font-bold font-mono text-lg sm:text-xl text-red-600 break-words">
-                                    {formatCurrency(inst.remaining)}
-                                  </span>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur border-2 border-blue-200">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-bold text-slate-900">Histórico de Gastos (6 meses)</CardTitle>
-                  <CardDescription>Evolução dos seus gastos ao longo do tempo</CardDescription>
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => setShowExpenseHistory(!showExpenseHistory)}
-                  className="font-semibold"
+                  className="font-semibold border-2 hover:bg-blue-50"
                 >
                   {showExpenseHistory ? "Ocultar" : "Exibir"}
                 </Button>
@@ -890,44 +747,669 @@ export default function DashboardPage() {
             </CardHeader>
             {showExpenseHistory && (
               <CardContent>
-                <div className="space-y-4">
-                  {expenseHistory.map((item, index) => {
-                    const maxValue = Math.max(...expenseHistory.map((h) => h.total))
-                    const itemPercentage = maxValue > 0 ? (item.total / maxValue) * 100 : 0
-
-                    return (
-                      <div key={index} className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-slate-700 capitalize">{item.month}</span>
-                          <span className="font-bold font-mono text-slate-900">{formatCurrency(item.total)}</span>
-                        </div>
-                        <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
-                            style={{ width: `${itemPercentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                {expenseHistory.every((item) => item.total === 0) ? (
+                  <div className="text-center py-12 text-slate-500">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <HistoryIcon />
+                    </div>
+                    <p className="text-base font-semibold">Nenhum dado disponível</p>
+                    <p className="text-sm mt-2">Adicione gastos para ver o histórico</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <ResponsiveContainer width="100%" height={400}>
+                      <PieChart>
+                        <Pie
+                          data={expenseHistory.filter((item) => item.total > 0)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ month, percent }) => `${month}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={120}
+                          fill="#8884d8"
+                          dataKey="total"
+                        >
+                          {expenseHistory.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={`hsl(${220 + index * 20}, 70%, ${50 + index * 5}%)`} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{
+                            backgroundColor: "rgba(255, 255, 255, 0.95)",
+                            border: "2px solid #3b82f6",
+                            borderRadius: "8px",
+                            padding: "12px",
+                          }}
+                        />
+                        <Legend
+                          verticalAlign="bottom"
+                          height={36}
+                          formatter={(value, entry: any) =>
+                            `${entry.payload.month}: ${formatCurrency(entry.payload.total)}`
+                          }
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </CardContent>
             )}
           </Card>
 
-          <CategoryChart type="personal" dateRange={formattedRange} />
-
-          <Card className="bg-white/80 backdrop-blur border-2 border-blue-200">
+          <Card className="bg-white/80 backdrop-blur border-2 border-green-200 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl font-bold text-slate-900">Gastos Recentes</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Últimas transações registradas</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">
+                    Gastos por Método de Pagamento
+                  </CardTitle>
+                  <CardDescription className="text-sm sm:text-base mt-1">
+                    Distribuição dos gastos por forma de pagamento
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPaymentMethodChart(!showPaymentMethodChart)}
+                  className="font-semibold border-2 hover:bg-green-50"
+                >
+                  {showPaymentMethodChart ? "Ocultar" : "Exibir"}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
-              <ExpenseList type="personal" dateRange={formattedRange} limit={10} />
-            </CardContent>
+            {showPaymentMethodChart && (
+              <CardContent>
+                {paymentMethodData.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <CreditCardIcon />
+                    </div>
+                    <p className="text-base font-semibold">Nenhum dado disponível</p>
+                    <p className="text-sm mt-2">Adicione gastos para ver a análise por método de pagamento</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <ResponsiveContainer width="100%" height={400}>
+                      <PieChart>
+                        <Pie
+                          data={paymentMethodData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={120}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {paymentMethodData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{
+                            backgroundColor: "rgba(255, 255, 255, 0.95)",
+                            border: "2px solid #10b981",
+                            borderRadius: "8px",
+                            padding: "12px",
+                          }}
+                        />
+                        <Legend
+                          verticalAlign="bottom"
+                          height={36}
+                          formatter={(value, entry: any) =>
+                            `${entry.payload.name}: ${formatCurrency(entry.payload.value)}`
+                          }
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur border-2 border-amber-200 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">Gastos por Categoria</CardTitle>
+                  <CardDescription className="text-sm sm:text-base mt-1">
+                    Distribuição dos gastos por categoria
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCategoryChart(!showCategoryChart)}
+                  className="font-semibold border-2 hover:bg-amber-50"
+                >
+                  {showCategoryChart ? "Ocultar" : "Exibir"}
+                </Button>
+              </div>
+            </CardHeader>
+            {showCategoryChart && (
+              <CardContent>
+                {categoryChartData.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <PieChartIcon />
+                    </div>
+                    <p className="text-base font-semibold">Nenhum dado disponível</p>
+                    <p className="text-sm mt-2">Adicione gastos para ver a análise por categoria</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <ResponsiveContainer width="100%" height={400}>
+                      <PieChart>
+                        <Pie
+                          data={categoryChartData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={120}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {categoryChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{
+                            backgroundColor: "rgba(255, 255, 255, 0.95)",
+                            border: "2px solid #f59e0b",
+                            borderRadius: "8px",
+                            padding: "12px",
+                          }}
+                        />
+                        <Legend
+                          verticalAlign="bottom"
+                          height={36}
+                          formatter={(value, entry: any) =>
+                            `${entry.payload.name}: ${formatCurrency(entry.payload.value)}`
+                          }
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            )}
           </Card>
         </main>
       </div>
+
+      <Dialog open={installmentsModalOpen} onOpenChange={setInstallmentsModalOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-cyan-50 border-2 border-cyan-200">
+          <DialogHeader className="border-b-2 pb-4 mb-6">
+            <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+              Parcelamentos Ativos
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 text-sm sm:text-base mt-2">
+              Visualize e gerencie todos os seus parcelamentos
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-200">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total de Parcelamentos</p>
+                    <p className="text-2xl sm:text-3xl font-bold font-mono text-cyan-600">
+                      {activeInstallments.length}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Valor Total Mensal</p>
+                    <p className="text-xl sm:text-3xl font-bold font-mono text-blue-600 break-words">
+                      {formatCurrency(activeInstallments.reduce((sum, inst) => sum + inst.installmentAmount, 0))}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-cyan-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Valor Restante Total</p>
+                    <p className="text-xl sm:text-3xl font-bold font-mono text-indigo-600 break-words">
+                      {formatCurrency(activeInstallments.reduce((sum, inst) => sum + inst.remaining, 0))}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {activeInstallments.length === 0 ? (
+              <Card className="border-2 border-slate-200">
+                <CardContent className="py-12">
+                  <div className="text-center text-slate-500">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <CreditCardIcon />
+                    </div>
+                    <p className="text-base font-semibold">Nenhum parcelamento ativo no momento</p>
+                    <p className="text-sm mt-2">Adicione um novo gasto parcelado para começar</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {activeInstallments.map((inst) => (
+                  <Dialog
+                    key={inst.id}
+                    open={installmentDialogOpen === inst.id}
+                    onOpenChange={(open) => setInstallmentDialogOpen(open ? inst.id : null)}
+                  >
+                    <DialogTrigger asChild>
+                      <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 border-2 hover:border-cyan-400 hover:scale-[1.02] bg-white">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-bold text-sm text-slate-900 line-clamp-2 flex-1 break-words overflow-hidden">
+                              {inst.description}
+                            </h3>
+                            <div className="flex gap-1 flex-shrink-0">
+                              {inst.isRecurring && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-blue-100 text-blue-700 border-blue-400 text-[9px] px-1 py-0"
+                                >
+                                  R
+                                </Badge>
+                              )}
+                              {inst.isIndefinite && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-purple-100 text-purple-700 border-purple-400 text-[9px] px-1 py-0"
+                                >
+                                  I
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-xl font-bold font-mono text-slate-900 break-words">
+                            {formatCurrency(inst.installmentAmount)}
+                          </div>
+                          <p className="text-xs text-slate-500">por mês</p>
+
+                          {!inst.isIndefinite && (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-600">
+                                  {inst.paidCount}/{inst.totalCount}
+                                </span>
+                                <span className="font-bold text-cyan-600">{inst.progress.toFixed(0)}%</span>
+                              </div>
+                              <div className="relative h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-all duration-500"
+                                  style={{ width: `${inst.progress}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {inst.isIndefinite && (
+                            <div className="flex items-center justify-between bg-purple-50 px-2 py-1.5 rounded border border-purple-200">
+                              <span className="text-xs text-slate-700">Pagas</span>
+                              <span className="font-bold text-base font-mono text-purple-600">{inst.paidCount}</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </DialogTrigger>
+
+                    <DialogContent className="max-w-[95vw] sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50">
+                      <DialogHeader className="border-b-2 pb-4 mb-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0 overflow-hidden">
+                            <DialogTitle className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 break-words">
+                              {inst.description}
+                            </DialogTitle>
+                            <DialogDescription className="text-xs sm:text-sm text-slate-600 font-medium mt-2">
+                              Detalhes completos do parcelamento
+                            </DialogDescription>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() => handleEditInstallment(inst.id)}
+                              className="h-9 w-9 sm:h-10 sm:w-10 border-2 border-blue-300 hover:bg-blue-50 hover:border-blue-500 text-blue-600 hover:text-blue-700 transition-all shadow-sm hover:shadow-md"
+                              title="Editar parcelamento"
+                            >
+                              <EditIcon />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() => setDeletingInstallment(inst.id)}
+                              className="h-9 w-9 sm:h-10 sm:w-10 border-2 border-red-300 hover:bg-red-50 hover:border-red-500 text-red-600 hover:text-red-700 transition-all shadow-sm hover:shadow-md"
+                              title="Excluir parcelamento"
+                            >
+                              <TrashIcon />
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogHeader>
+
+                      <div className="space-y-4 sm:space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300">
+                            <CardContent className="pt-4 pb-4">
+                              <p className="text-xs text-blue-700 font-semibold uppercase tracking-wider mb-2">
+                                Valor da Parcela
+                              </p>
+                              <p className="text-base sm:text-lg lg:text-xl font-bold font-mono text-blue-900 break-words">
+                                {formatCurrency(inst.installmentAmount)}
+                              </p>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300">
+                            <CardContent className="pt-4 pb-4">
+                              <p className="text-xs text-green-700 font-semibold uppercase tracking-wider mb-2">
+                                Valor Total
+                              </p>
+                              <p className="text-base sm:text-lg lg:text-xl font-bold font-mono text-green-900 break-words">
+                                {inst.isIndefinite
+                                  ? "Indeterminado"
+                                  : formatCurrency(inst.installmentAmount * inst.totalCount)}
+                              </p>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300">
+                            <CardContent className="pt-4 pb-4">
+                              <p className="text-xs text-purple-700 font-semibold uppercase tracking-wider mb-2">
+                                Data de Início
+                              </p>
+                              <p className="text-sm sm:text-base lg:text-lg font-bold text-purple-900">
+                                {new Date(inst.startDate).toLocaleDateString("pt-BR")}
+                              </p>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-300">
+                            <CardContent className="pt-4 pb-4">
+                              <p className="text-xs text-orange-700 font-semibold uppercase tracking-wider mb-2">
+                                Categoria
+                              </p>
+                              <p className="text-sm sm:text-base lg:text-lg font-bold text-orange-900 capitalize break-words truncate">
+                                {inst.category}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        {!inst.isIndefinite && (
+                          <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-300">
+                            <CardContent className="pt-4 pb-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-bold text-sm sm:text-base lg:text-lg text-indigo-900">
+                                  Progresso Geral
+                                </h4>
+                                <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-indigo-600">
+                                  {inst.progress.toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="relative h-6 bg-indigo-200 rounded-full overflow-hidden shadow-inner">
+                                <div
+                                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-all duration-500 shadow-md"
+                                  style={{ width: `${inst.progress}%` }}
+                                />
+                              </div>
+                              <p className="text-xs sm:text-sm text-indigo-700 font-semibold">
+                                {inst.paidCount} de {inst.totalCount} parcelas pagas
+                              </p>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        <Card className="border-2 border-slate-300">
+                          <CardHeader className="bg-slate-100 pb-4">
+                            <h4 className="font-bold text-sm sm:text-base lg:text-lg text-slate-900">
+                              Controle de Parcelas
+                            </h4>
+                            <p className="text-xs sm:text-sm text-slate-600 mt-2">
+                              Clique nos números para marcar/desmarcar como pago
+                            </p>
+                          </CardHeader>
+                          <CardContent className="pt-4">
+                            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3 max-h-60 overflow-y-auto p-2">
+                              {inst.isIndefinite ? (
+                                <div className="col-span-4 sm:col-span-6 lg:col-span-8 text-center py-8 sm:py-12 bg-purple-50 rounded-xl border-2 border-purple-200">
+                                  <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
+                                    <CreditCardIcon />
+                                  </div>
+                                  <p className="font-semibold text-purple-900 text-sm sm:text-base lg:text-lg">
+                                    Parcelamento indeterminado
+                                  </p>
+                                  <p className="text-xs sm:text-sm mt-2 text-purple-700 font-medium">
+                                    {inst.paidCount} parcelas pagas
+                                  </p>
+                                </div>
+                              ) : (
+                                Array.from({ length: inst.totalCount }, (_, i) => i + 1).map((num) => {
+                                  const isPaid = inst.paidInstallments.includes(num)
+                                  return (
+                                    <Button
+                                      key={num}
+                                      variant={isPaid ? "default" : "outline"}
+                                      size="lg"
+                                      onClick={() => markInstallmentAsPaid(inst.id, num)}
+                                      className={`font-bold text-xs sm:text-sm h-10 sm:h-12 ${
+                                        isPaid
+                                          ? "bg-green-600 hover:bg-green-700 shadow-md"
+                                          : "hover:bg-slate-100 hover:border-slate-400"
+                                      }`}
+                                    >
+                                      {num}
+                                    </Button>
+                                  )
+                                })
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300">
+                          <CardContent className="pt-4 pb-4 space-y-3">
+                            <div className="flex justify-between items-center py-3 border-b-2 border-slate-300">
+                              <span className="text-slate-700 font-semibold text-xs sm:text-sm lg:text-base">
+                                Valor Pago
+                              </span>
+                              <span className="font-bold font-mono text-base sm:text-lg lg:text-xl text-green-600 break-words">
+                                {formatCurrency(inst.paidCount * inst.installmentAmount)}
+                              </span>
+                            </div>
+                            {!inst.isIndefinite && (
+                              <div className="flex justify-between items-center py-3">
+                                <span className="text-slate-700 font-semibold text-xs sm:text-sm lg:text-base">
+                                  Valor Restante
+                                </span>
+                                <span className="font-bold font-mono text-base sm:text-lg lg:text-xl text-red-600 break-words">
+                                  {formatCurrency(inst.remaining)}
+                                </span>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => setInstallmentsModalOpen(false)}
+                variant="outline"
+                className="border-2 border-slate-300 hover:bg-slate-100"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={categoriesModalOpen} onOpenChange={setCategoriesModalOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-amber-50 border-2 border-amber-200">
+          <DialogHeader className="border-b-2 pb-4 mb-6">
+            <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+              Gastos por Categoria
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 text-sm sm:text-base mt-2">
+              Análise detalhada dos seus gastos organizados por categoria
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total de Categorias</p>
+                    <p className="text-2xl sm:text-3xl font-bold font-mono text-amber-600">
+                      {categoryChartData.length}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total Gasto</p>
+                    <p className="text-xl sm:text-3xl font-bold font-mono text-orange-600 break-words">
+                      {formatCurrency(personalStats.total)}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-amber-300 overflow-hidden">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Categoria Principal</p>
+                    <p className="text-base sm:text-xl font-bold text-amber-900 truncate">
+                      {categoryChartData.length > 0 ? categoryChartData[0].name : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {categoryChartData.length === 0 ? (
+              <Card className="border-2 border-slate-200">
+                <CardContent className="py-12">
+                  <div className="text-center text-slate-500">
+                    <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <PieChartIcon />
+                    </div>
+                    <p className="text-base font-semibold">Nenhum dado disponível</p>
+                    <p className="text-sm mt-2">Adicione gastos para ver a análise por categoria</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-2 border-slate-200">
+                <CardHeader className="bg-slate-50">
+                  <CardTitle className="text-lg sm:text-xl text-slate-900">Distribuição por Categoria</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  {categoryChartData.map((item, index) => (
+                    <div key={index} className="space-y-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+                          <div
+                            className="h-4 w-4 rounded-full shadow-md border-2 border-white flex-shrink-0"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="font-semibold text-sm sm:text-base text-slate-700 truncate">
+                            {item.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                          <span className="text-xs sm:text-sm text-slate-500 font-medium">
+                            {item.percentage.toFixed(1)}%
+                          </span>
+                          <span className="font-mono font-bold text-base sm:text-lg text-slate-800 break-words">
+                            {formatCurrency(item.value)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-4 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 shadow-sm"
+                          style={{
+                            width: `${item.percentage}%`,
+                            background: `linear-gradient(90deg, ${item.color}, ${item.color}dd)`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => setCategoriesModalOpen(false)}
+                variant="outline"
+                className="border-2 border-slate-300 hover:bg-slate-100"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={expenseDetailsOpen} onOpenChange={setExpenseDetailsOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 border-2 border-blue-200">
+          <DialogHeader className="border-b-2 pb-4 mb-6">
+            <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Histórico Completo de Gastos
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 text-sm sm:text-base mt-2">
+              Visualize todos os seus gastos com detalhes completos
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Total de Gastos</p>
+                    <p className="text-xl sm:text-3xl font-bold font-mono text-blue-600 break-words">
+                      {formatCurrency(personalStats.total)}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Número de Transações</p>
+                    <p className="text-2xl sm:text-3xl font-bold font-mono text-indigo-600">{personalStats.count}</p>
+                  </div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-blue-300">
+                    <p className="text-xs sm:text-sm text-slate-600 font-semibold mb-2">Média por Gasto</p>
+                    <p className="text-xl sm:text-3xl font-bold font-mono text-purple-600 break-words">
+                      {formatCurrency(personalStats.count > 0 ? personalStats.total / personalStats.count : 0)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-slate-200">
+              <CardHeader className="bg-slate-50">
+                <CardTitle className="text-lg sm:text-xl text-slate-900">Lista Detalhada de Gastos</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ExpenseList type="personal" dateRange={formattedRange} limit={undefined} />
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => setExpenseDetailsOpen(false)}
+                variant="outline"
+                className="border-2 border-slate-300 hover:bg-slate-100"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deletingInstallment} onOpenChange={(open) => !open && setDeletingInstallment(null)}>
         <AlertDialogContent className="max-w-[95vw] sm:max-w-md bg-gradient-to-br from-white to-red-50 border-2 border-red-300">

@@ -40,10 +40,34 @@ const PlusIcon = () => (
   </svg>
 )
 
+const TrashIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="3 6 5 6 21 6"></polyline>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+  </svg>
+)
+
 interface UnifiedExpenseDialogProps {
   defaultType?: ExpenseType
   editingInstallment?: any
   onInstallmentEditComplete?: () => void
+}
+
+interface ExpenseItem {
+  id: string
+  description: string
+  amount: string
+  date: string
+  category: ExpenseCategory
 }
 
 export function UnifiedExpenseDialog({
@@ -56,20 +80,25 @@ export function UnifiedExpenseDialog({
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"simple" | "installment">("simple")
 
-  // Simple expense form
   const [simpleForm, setSimpleForm] = useState({
-    description: "",
-    amount: "",
-    category: "outros" as ExpenseCategory,
-    type: defaultType,
     paymentMethod: "dinheiro" as PaymentMethod,
-    date: new Date().toISOString().split("T")[0],
+    category: "outros" as ExpenseCategory,
     notes: "",
     isRecurring: false,
     isFixed: false,
     recurringEndDate: "",
     isIndefinite: false,
   })
+
+  const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([
+    {
+      id: crypto.randomUUID(),
+      description: "",
+      amount: "",
+      date: new Date().toISOString().split("T")[0],
+      category: "outros" as ExpenseCategory,
+    },
+  ])
 
   // Installment form
   const [installmentForm, setInstallmentForm] = useState({
@@ -102,51 +131,84 @@ export function UnifiedExpenseDialog({
     }
   }, [editingInstallment])
 
-  const handleSimpleSubmit = (e: React.FormEvent) => {
+  const addExpenseItem = () => {
+    setExpenseItems([
+      ...expenseItems,
+      {
+        id: crypto.randomUUID(),
+        description: "",
+        amount: "",
+        date: new Date().toISOString().split("T")[0],
+        category: "outros" as ExpenseCategory,
+      },
+    ])
+  }
+
+  const removeExpenseItem = (id: string) => {
+    if (expenseItems.length > 1) {
+      setExpenseItems(expenseItems.filter((item) => item.id !== id))
+    }
+  }
+
+  const updateExpenseItem = (id: string, field: keyof ExpenseItem, value: string) => {
+    setExpenseItems(expenseItems.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
+  }
+
+  const handleSimpleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const amount = Number.parseFloat(simpleForm.amount)
-    if (amount <= 0) {
+    const invalidItems = expenseItems.filter(
+      (item) => !item.description.trim() || !item.amount || Number.parseFloat(item.amount) <= 0,
+    )
+
+    if (invalidItems.length > 0) {
       toast({
-        title: "Valor inválido",
-        description: "O valor deve ser maior que zero.",
+        title: "Dados inválidos",
+        description: "Preencha todos os campos obrigatórios com valores válidos.",
         variant: "destructive",
       })
       return
     }
 
-    addExpense({
-      description: simpleForm.description,
-      amount,
-      category: simpleForm.category,
-      type: simpleForm.type,
-      paymentMethod: simpleForm.paymentMethod,
-      date: simpleForm.date,
-      notes: simpleForm.notes || undefined,
-      isRecurring: simpleForm.isRecurring,
-      isFixed: simpleForm.isFixed,
-      recurringEndDate:
-        simpleForm.isRecurring && !simpleForm.isIndefinite && simpleForm.recurringEndDate
-          ? simpleForm.recurringEndDate
-          : undefined,
-    })
+    try {
+      for (const item of expenseItems) {
+        const amount = Number.parseFloat(item.amount)
 
-    const expenseType = simpleForm.isRecurring
-      ? simpleForm.isFixed
-        ? "Gasto Fixo Recorrente"
-        : "Gasto Recorrente"
-      : "Gasto"
+        await addExpense({
+          description: item.description,
+          amount,
+          category: item.category,
+          type: defaultType,
+          paymentMethod: simpleForm.paymentMethod,
+          date: item.date,
+          notes: simpleForm.notes || undefined,
+          isRecurring: simpleForm.isRecurring,
+          isFixed: simpleForm.isFixed,
+          recurringEndDate:
+            simpleForm.isRecurring && !simpleForm.isIndefinite && simpleForm.recurringEndDate
+              ? simpleForm.recurringEndDate
+              : undefined,
+        })
+      }
 
-    toast({
-      title: `${expenseType} adicionado!`,
-      description: `${simpleForm.description} - ${new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }).format(amount)}`,
-    })
+      const expenseType = simpleForm.isRecurring
+        ? simpleForm.isFixed
+          ? "Gastos Fixos Recorrentes"
+          : "Gastos Recorrentes"
+        : expenseItems.length > 1
+          ? "Gastos"
+          : "Gasto"
 
-    resetForms()
-    setOpen(false)
+      toast({
+        title: `${expenseType} adicionado${expenseItems.length > 1 ? "s" : ""}!`,
+        description: `${expenseItems.length} ${expenseItems.length > 1 ? "gastos foram adicionados" : "gasto foi adicionado"} com sucesso.`,
+      })
+
+      resetForms()
+      setOpen(false)
+    } catch (error) {
+      console.error("[v0] Error adding expenses:", error)
+    }
   }
 
   const handleInstallmentSubmit = (e: React.FormEvent) => {
@@ -213,18 +275,23 @@ export function UnifiedExpenseDialog({
 
   const resetForms = () => {
     setSimpleForm({
-      description: "",
-      amount: "",
-      category: "outros",
-      type: defaultType,
       paymentMethod: "dinheiro",
-      date: new Date().toISOString().split("T")[0],
+      category: "outros",
       notes: "",
       isRecurring: false,
       isFixed: false,
       recurringEndDate: "",
       isIndefinite: false,
     })
+    setExpenseItems([
+      {
+        id: crypto.randomUUID(),
+        description: "",
+        amount: "",
+        date: new Date().toISOString().split("T")[0],
+        category: "outros" as ExpenseCategory,
+      },
+    ])
     setInstallmentForm({
       description: "",
       totalAmount: "",
@@ -257,7 +324,7 @@ export function UnifiedExpenseDialog({
           <span>Adicionar Gasto</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-blue-50 border-2 border-blue-200">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-blue-50 border-2 border-blue-200">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -287,79 +354,8 @@ export function UnifiedExpenseDialog({
           <TabsContent value="simple" className="space-y-4 mt-6">
             <form onSubmit={handleSimpleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-slate-700 font-semibold text-sm">
-                  Descrição
-                </Label>
-                <Input
-                  id="description"
-                  placeholder="Ex: Supermercado, Aluguel, Netflix"
-                  value={simpleForm.description}
-                  onChange={(e) => setSimpleForm({ ...simpleForm, description: e.target.value })}
-                  required
-                  className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-slate-700 font-semibold text-sm">
-                    Valor
-                  </Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    placeholder="0,00"
-                    value={simpleForm.amount}
-                    onChange={(e) => setSimpleForm({ ...simpleForm, amount: e.target.value })}
-                    required
-                    className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="date" className="text-slate-700 font-semibold text-sm">
-                    Data
-                  </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={simpleForm.date}
-                    onChange={(e) => setSimpleForm({ ...simpleForm, date: e.target.value })}
-                    required
-                    className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category" className="text-slate-700 font-semibold text-sm">
-                  Categoria
-                </Label>
-                <Select
-                  value={simpleForm.category}
-                  onValueChange={(value) => setSimpleForm({ ...simpleForm, category: value as ExpenseCategory })}
-                >
-                  <SelectTrigger
-                    id="category"
-                    className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {Object.entries(categoryLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key} className="focus:bg-blue-50">
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="payment" className="text-slate-700 font-semibold text-sm">
-                  Pagamento
+                  Método de Pagamento
                 </Label>
                 <Select
                   value={simpleForm.paymentMethod}
@@ -384,6 +380,120 @@ export function UnifiedExpenseDialog({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-global" className="text-slate-700 font-semibold text-sm">
+                  Categoria Padrão
+                </Label>
+                <Select
+                  value={simpleForm.category}
+                  onValueChange={(value) =>
+                    setSimpleForm({
+                      ...simpleForm,
+                      category: value as ExpenseCategory,
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    id="category-global"
+                    className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400 bg-white"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {Object.entries(categoryLabels).map(([key, label]) => (
+                      <SelectItem key={key} value={key} className="focus:bg-blue-50">
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">Esta categoria será aplicada a todos os itens abaixo</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-slate-700 font-semibold text-sm">Gastos ({expenseItems.length})</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addExpenseItem}
+                    className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 bg-transparent"
+                  >
+                    <PlusIcon />
+                    Adicionar Item
+                  </Button>
+                </div>
+
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                  {expenseItems.map((item, index) => (
+                    <div key={item.id} className="p-4 bg-white rounded-lg border-2 border-blue-200 space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-slate-600">Item {index + 1}</span>
+                        {expenseItems.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExpenseItem(item.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <TrashIcon />
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`description-${item.id}`} className="text-slate-700 text-sm">
+                          Descrição
+                        </Label>
+                        <Input
+                          id={`description-${item.id}`}
+                          placeholder="Ex: Supermercado, Aluguel, Netflix"
+                          value={item.description}
+                          onChange={(e) => updateExpenseItem(item.id, "description", e.target.value)}
+                          required
+                          className="border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`amount-${item.id}`} className="text-slate-700 text-sm">
+                            Valor
+                          </Label>
+                          <Input
+                            id={`amount-${item.id}`}
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="0,00"
+                            value={item.amount}
+                            onChange={(e) => updateExpenseItem(item.id, "amount", e.target.value)}
+                            required
+                            className="border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`date-${item.id}`} className="text-slate-700 text-sm">
+                            Data
+                          </Label>
+                          <Input
+                            id={`date-${item.id}`}
+                            type="date"
+                            value={item.date}
+                            onChange={(e) => updateExpenseItem(item.id, "date", e.target.value)}
+                            required
+                            className="border-2 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
@@ -504,7 +614,7 @@ export function UnifiedExpenseDialog({
                   type="submit"
                   className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
                 >
-                  Adicionar
+                  Adicionar {expenseItems.length > 1 ? `${expenseItems.length} Gastos` : "Gasto"}
                 </Button>
               </div>
             </form>
